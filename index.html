@@ -54,6 +54,7 @@ h1{font-size:19px;font-weight:600}
 .shift-time input{border:1px solid transparent;background:transparent;font-size:11px;color:var(--muted);width:44px;text-align:center;border-radius:4px;padding:1px}
 .shift-time input:hover{border-color:var(--line)}
 .shift-label{font-size:11px;font-weight:600;color:var(--ink);border:1px solid transparent;background:transparent;width:100%;border-radius:4px;margin-bottom:5px}
+.label-note{color:var(--amber);font-weight:700}
 .shift-label:hover,.shift-label:focus{border-color:var(--line);outline:none}
 .worker-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:20px;font-size:12.5px;font-weight:500;cursor:pointer;width:100%;justify-content:center}
 .worker-pill.empty{background:#fff;border:1px dashed var(--line);color:var(--muted)}
@@ -631,6 +632,10 @@ function render(){
 function workerName(id){ const w = workers.find(x=>x.id===id); return w ? w.name : null; }
 
 /* ---------- כרטיסי משמרת/צוות (משותף) ---------- */
+function highlightNote(label){
+  if(!label) return label;
+  return label.replace(/\(([^)]+)\)/g, '<span class="label-note">($1)</span>');
+}
 function shiftCardHtml(s){
   const wname = workerName(s.worker_id);
   const displayName = s.freelance_name ? `${s.freelance_name} (פרילנס)` : wname;
@@ -646,7 +651,7 @@ function shiftCardHtml(s){
     if(!combined && !sickName && !sickRName) return ''; // תא ריק - לא מציגים כלום
     const isFreelance = !!(s.freelance_name || s.freelance_recorder_name);
     return `<div class="mini-card">
-      <div class="shift-label">${s.label}</div><div class="shift-time">${s.start_time}–${s.end_time}</div>
+      <div class="shift-label">${highlightNote(s.label)}</div><div class="shift-time">${s.start_time}–${s.end_time}</div>
       ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}</div>`:''}
       ${sickRName?`<div class="sick-badge">🤒 מחלה: ${sickRName}</div>`:''}
       ${combined?`<div class="worker-pill filled ${isFreelance?'freelance':''}">${combined}</div>`:''}
@@ -1326,7 +1331,7 @@ function renderConstraints(){
   </select>`;
   if(!selectedConstraintWorker){
     html += `<div class="empty-msg">בחר שם כדי לסמן אילוצים</div>`;
-    if(editMode) html += renderConstraintsOverview();
+    html += renderConstraintsOverview();
     return html;
   }
   html += `<div class="constraint-days">`;
@@ -1341,7 +1346,7 @@ function renderConstraints(){
     </div>`;
   });
   html += `</div>`;
-  if(editMode) html += renderConstraintsOverview();
+  html += renderConstraintsOverview();
   return html;
 }
 const WORKER_REGION = {
