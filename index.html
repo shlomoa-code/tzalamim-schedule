@@ -251,6 +251,7 @@ h1{font-size:19px;font-weight:600}
       </div>
       <button class="btn" id="screenshot-btn" style="display:none" onclick="screenshotTable()">📷 צלם טבלה</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
+      <button class="btn" id="copy-special-btn" style="display:none" onclick="copySpecialEventsFromPrevWeek()">📋 העתק אירועים מיוחדים משבוע קודם</button>
       <button class="btn" id="edit-toggle" onclick="toggleEdit()">🔒 ערוך</button>
     </div>
   </div>
@@ -611,6 +612,7 @@ function toggleEdit(){
   document.getElementById('edit-toggle').textContent = editMode ? '🔓 מצב עריכה פעיל' : '🔒 ערוך';
   document.getElementById('edit-toggle').className = editMode ? 'btn badge-editmode' : 'btn';
   document.getElementById('stats-btn').style.display = editMode ? '' : 'none';
+  document.getElementById('copy-special-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   if(!editMode && activeTab==='workers') activeTab = 'schedule';
   render();
@@ -1678,6 +1680,28 @@ function copyScheduleText(){
     document.body.removeChild(ta);
   };
   doCopy(out);
+}
+
+function shiftDateStr(ds, deltaDays){
+  const [y,m,d] = ds.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate()+deltaDays);
+  return dateStr(dt);
+}
+async function copySpecialEventsFromPrevWeek(){
+  const prevWeekStart = shiftDateStr(weekStart, -7);
+  const {data} = await sb.from('shifts').select('*').eq('week_start', prevWeekStart).in('region', ['special1','special2']);
+  if(!data || !data.length){ alert('לא נמצאו אירועים מיוחדים בשבוע הקודם להעתקה.'); return; }
+  if(!confirm(`נמצאו ${data.length} שורות אירועים מיוחדים בשבוע הקודם (${prevWeekStart}). להעתיק לשבוע הנוכחי?`)) return;
+  const rows = data.map(s=>({
+    week_start: weekStart, region: s.region, day_of_week: s.day_of_week, label: s.label,
+    start_time: s.start_time, end_time: s.end_time, worker_id: s.worker_id, recorder_id: s.recorder_id,
+    freelance_name: s.freelance_name||'', freelance_recorder_name: s.freelance_recorder_name||'', row_order: s.row_order
+  }));
+  const {data: inserted} = await sb.from('shifts').insert(rows).select();
+  if(inserted) shifts.push(...inserted);
+  render();
+  alert('הועתק בהצלחה!');
 }
 
 /* ===================== סטטיסטיקת שיבוצים ===================== */
