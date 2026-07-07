@@ -1497,10 +1497,24 @@ function renderVacations(){
   rest.forEach(v=>{
     html += `<div class="vac-item">
       <div><b>${workerName(v.worker_id)||'—'}</b> · ${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''} ${v.note?'· '+v.note:''}</div>
-      <span class="vac-status ${v.status}">${v.status==='approved'?'מאושר':v.status==='rejected'?'נדחה':'ממתין'}</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="vac-status ${v.status}">${v.status==='approved'?'מאושר':v.status==='rejected'?'נדחה':'ממתין'}</span>
+        ${editMode?`
+          ${v.status!=='approved'?`<button class="btn btn-sm btn-primary" onclick="setVacStatus('${v.id}','approved')">אשר</button>`:''}
+          ${v.status!=='rejected'?`<button class="btn btn-sm btn-danger" onclick="setVacStatus('${v.id}','rejected')">${v.status==='approved'?'בטל אישור':'דחה'}</button>`:''}
+          ${v.status!=='pending'?`<button class="btn btn-sm" onclick="setVacStatus('${v.id}','pending')">החזר לממתין</button>`:''}
+          <button class="btn btn-sm btn-danger" onclick="deleteVacation('${v.id}')">מחק</button>
+        `:''}
+      </div>
     </div>`;
   });
   return html;
+}
+async function deleteVacation(id){
+  if(!confirm('למחוק את הבקשה הזו לגמרי? (פעולה זו לא שולחת מייל לעובד)')) return;
+  await sb.from('vacation_requests').delete().eq('id',id);
+  vacationRequests = vacationRequests.filter(v=>v.id!==id);
+  render();
 }
 async function submitVacation(){
   const worker_id = document.getElementById('vac-worker').value;
@@ -1516,7 +1530,7 @@ async function submitVacation(){
 async function setVacStatus(id, status){
   await sb.from('vacation_requests').update({status}).eq('id',id);
   const v = vacationRequests.find(x=>x.id===id); if(v) v.status=status;
-  if(v){
+  if(v && status!=='pending'){
     const w = workers.find(x=>x.id===v.worker_id);
     if(w) sendVacationResponseEmail(w.email, w.name, status, v.from_date, v.to_date);
   }
