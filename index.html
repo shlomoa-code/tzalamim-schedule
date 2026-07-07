@@ -1340,9 +1340,10 @@ function renderConstraints(){
     const ds = dateStr(d);
     const row = constraintsData.find(c=>c.worker_id===selectedConstraintWorker && c.day_of_week===day.i);
     const status = row ? (row.status||'available') : 'available';
+    const note = row ? (row.note||'') : '';
     const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
     html += `<div class="constraint-pill ${st.cls}" onclick="openConstraintPopup(${day.i})">
-      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}
+      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}
     </div>`;
   });
   html += `</div>`;
@@ -1376,9 +1377,10 @@ function renderConstraintsOverview(){
     DAYS.forEach(day=>{
       const row = constraintsData.find(c=>c.worker_id===w.id && c.day_of_week===day.i);
       const status = row ? (row.status||'available') : 'available';
+      const note = row ? (row.note||'') : '';
       const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
       const shortLabel = status==='available' ? '' : st.label;
-      cells += `<td class="day-cell overview-cell ${st.cls}">${shortLabel}</td>`;
+      cells += `<td class="day-cell overview-cell ${st.cls}">${shortLabel}${note?`<br><span style="font-weight:400">${note}</span>`:''}</td>`;
     });
     return `<tr><td class="row-label">${w.name}</td>${cells}</tr>`;
   };
@@ -1416,11 +1418,19 @@ async function pickConstraintStatus(status){
   const nextWeekStart = dateStr(getWeekStart(1));
   const day = constraintPopupDay;
   const existing = constraintsData.find(c=>c.worker_id===selectedConstraintWorker && c.day_of_week===day);
+  let note = existing ? (existing.note||'') : '';
+  const wantsNote = status!=='available' && status!=='blocked';
+  if(wantsNote){
+    const entered = prompt('שעות מועדפות (לא חובה, למשל 10:00-18:00):', note);
+    if(entered!==null) note = entered.trim();
+  } else if(status==='blocked' || status==='sick'){
+    note = '';
+  }
   if(existing){
-    await sb.from('constraints').update({status, available: status!=='blocked'}).eq('id',existing.id);
-    existing.status = status; existing.available = status!=='blocked';
+    await sb.from('constraints').update({status, note, available: status!=='blocked'}).eq('id',existing.id);
+    existing.status = status; existing.note = note; existing.available = status!=='blocked';
   } else {
-    const {data} = await sb.from('constraints').insert({week_start:nextWeekStart, worker_id:selectedConstraintWorker, day_of_week:day, status, available: status!=='blocked'}).select();
+    const {data} = await sb.from('constraints').insert({week_start:nextWeekStart, worker_id:selectedConstraintWorker, day_of_week:day, status, note, available: status!=='blocked'}).select();
     if(data) constraintsData.push(data[0]);
   }
   closePopup();
