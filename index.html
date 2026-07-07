@@ -751,14 +751,14 @@ function openTeamDetails(id){
 function shiftsFor(region, day, filterFn){
   return shifts.filter(s=>s.region===region && s.day_of_week===day && filterFn(s.label)).sort((a,b)=>a.row_order-b.row_order);
 }
-function regionCellInner(region, day, filterFn){
+function regionCellInner(region, day, filterFn, defaultLabel){
   const list = shiftsFor(region, day, filterFn);
   let html = list.map(shiftCardHtml).join('');
-  if(editMode) html += `<button class="add-shift-btn" onclick="addShift('${region}',${day})">+ הוסף</button>`;
+  if(editMode) html += `<button class="add-shift-btn" onclick="addShift('${region}',${day},'${defaultLabel||''}')">+ הוסף</button>`;
   return html;
 }
-function regionCell(region, day, filterFn){
-  return `<td class="day-cell">${regionCellInner(region, day, filterFn)}</td>`;
+function regionCell(region, day, filterFn, defaultLabel){
+  return `<td class="day-cell">${regionCellInner(region, day, filterFn, defaultLabel)}</td>`;
 }
 function magazineCellInner(magazine, day){
   const teams = magTeams.filter(t=>t.magazine===magazine && t.day_of_week===day).sort((a,b)=>a.row_order-b.row_order);
@@ -877,9 +877,9 @@ function buildSections(){
   const add = (label, inner, sectionStart, rowClass, shortLabel)=> sections.push({label, shortLabel:shortLabel||label, inner, sectionStart, rowClass});
 
   add('שוטף ת"א', d=>regionCellInner('ta', d, l=>l!=='כונן'), true, null, 'ת"א');
-  add('כוננים', d=>regionCellInner('ta', d, l=>l==='כונן'), false, 'row-oncall');
+  add('כוננים', d=>regionCellInner('ta', d, l=>l==='כונן', 'כונן'), false, 'row-oncall');
   add('שוטף ירושלים', d=>regionCellInner('jerusalem', d, l=>l!=='כונן'), true, null, 'י-ם');
-  add('כוננים', d=>regionCellInner('jerusalem', d, l=>l==='כונן'), false, 'row-oncall');
+  add('כוננים', d=>regionCellInner('jerusalem', d, l=>l==='כונן', 'כונן'), false, 'row-oncall');
   if(editMode || hasAnyShiftInRegion('special1')) add('אירוע מיוחד 1', d=>regionCellInner('special1', d, l=>true), true, null, 'אירוע 1');
   if(editMode || hasAnyShiftInRegion('special2')) add('אירוע מיוחד 2', d=>regionCellInner('special2', d, l=>true), false, null, 'אירוע 2');
   add('מגזין מהדורה', d=>magazineCellInner('mahadura', d), true, 'row-mag-a', 'מהדורה');
@@ -887,11 +887,11 @@ function buildSections(){
   add('מגזין שישי', d=>magazineCellInner('friday', d), false, 'row-mag-c', 'שישי');
   add('מגזין שבת', d=>magazineCellInner('saturday', d), false, 'row-mag-d', 'שבת');
   add('דרום — צלם', d=>regionCellInner('south', d, l=>l!=='כונן' && l!=='ערבית'), true, null, 'דרום');
-  add('כוננות דרום', d=>regionCellInner('south', d, l=>l==='כונן'), false, 'row-oncall', 'כוננות');
+  add('כוננות דרום', d=>regionCellInner('south', d, l=>l==='כונן', 'כונן'), false, 'row-oncall', 'כוננות');
   add('חיפה — צלם', d=>regionCellInner('haifa', d, l=>l!=='כונן' && l!=='ערבית'), true, null, 'חיפה');
-  add('כוננות חיפה', d=>regionCellInner('haifa', d, l=>l==='כונן'), false, 'row-oncall', 'כוננות');
-  add('ערבית דרום', d=>regionCellInner('south', d, l=>l==='ערבית'), true, null, 'ער\' דרום');
-  add('ערבית חיפה', d=>regionCellInner('haifa', d, l=>l==='ערבית'), false, null, 'ער\' חיפה');
+  add('כוננות חיפה', d=>regionCellInner('haifa', d, l=>l==='כונן', 'כונן'), false, 'row-oncall', 'כוננות');
+  add('ערבית דרום', d=>regionCellInner('south', d, l=>l==='ערבית', 'ערבית'), true, null, 'ער\' דרום');
+  add('ערבית חיפה', d=>regionCellInner('haifa', d, l=>l==='ערבית', 'ערבית'), false, null, 'ער\' חיפה');
   add('טופליין', d=>noteCellInner(toplineNotes, d, 'updateTopline', 'לא פעיל'), true, 'row-topline');
   add('מבצעים', d=>noteCellInner(mivtzaimNotes, d, 'updateMivtzaim', 'לא הוזן'), false, 'row-mivtzaim');
   return sections;
@@ -990,8 +990,8 @@ function renderRegion(regionKey){
   return `<div class="mag-head"><div class="mag-title">${region.name}</div></div>` + html;
 }
 
-async function addShift(region, day){
-  const label = prompt('שם המשמרת:', 'משמרת חדשה');
+async function addShift(region, day, defaultLabel){
+  const label = prompt('שם המשמרת:', defaultLabel || 'משמרת חדשה');
   if(label===null) return;
   const start = prompt('שעת התחלה:', '09:00') || '';
   const end = prompt('שעת סיום:', '18:00') || '';
