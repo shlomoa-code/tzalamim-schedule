@@ -189,6 +189,7 @@ h1{font-size:19px;font-weight:600}
 .popup-opt{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:3px}
 .popup-opt:hover{background:var(--bg)}
 .popup-opt.clear{color:var(--red)}
+.popup-opt.vac-warn{color:var(--amber);font-weight:600;background:var(--amber-bg)}
 .badge-editmode{background:var(--green-bg);color:var(--green);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600}
 .empty-msg{color:var(--muted);font-size:12px;text-align:center;padding:20px}
 
@@ -1277,13 +1278,52 @@ async function deleteWorker(id){
 
 /* ---------- פופאפ בחירת עובד ---------- */
 let popupCtx = null;
-function openWorkerPopup(kind, id, role){
+function sundayOfDateStr(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const day = dt.getDay();
+  dt.setDate(dt.getDate()-day);
+  return dateStr(dt);
+}
+async function openWorkerPopup(kind, id, role){
   popupCtx = {kind, id, role};
   const list = workers.filter(w=>w.type===role && w.active);
   const freeList = freelancers.filter(f=>f.type===role && f.active);
   document.getElementById('popup-title').textContent = role==='photographer' ? 'בחר צלם' : 'בחר מקליט';
+
+  // מציאת התאריך הרלוונטי כדי לבדוק חופש/מחלה מוצהרת
+  let dayIdx = null;
+  if(kind==='shift'){ const s = shifts.find(x=>x.id===id); dayIdx = s ? s.day_of_week : null; }
+  else { const t = magTeams.find(x=>x.id===id); dayIdx = t ? t.day_of_week : null; }
+  const targetDate = dayIdx!=null ? dateForDay(dayIdx) : null;
+
+  const vacationIds = new Set();
+  if(targetDate){
+    vacationRequests.forEach(v=>{
+      if(v.status==='approved' && v.from_date<=targetDate && v.to_date>=targetDate) vacationIds.add(v.worker_id);
+    });
+  }
+  let sickIds = new Set();
+  if(targetDate){
+    const targetWeekStart = sundayOfDateStr(targetDate);
+    try{
+      const {data} = await sb.from('constraints').select('worker_id').eq('week_start', targetWeekStart).eq('day_of_week', dayIdx).eq('status','sick');
+      (data||[]).forEach(r=>sickIds.add(r.worker_id));
+    }catch(e){ console.warn('sick check failed', e); }
+  }
+
+  const optHtml = w=>{
+    const onVacation = vacationIds.has(w.id);
+    const onSick = sickIds.has(w.id);
+    const warn = onVacation ? ' 🏖️ (בחופש)' : (onSick ? ' 🤒 (מחלה מוצהרת)' : '');
+    const clickAction = (onVacation||onSick)
+      ? `if(confirm('${w.name} מוצהר/ת ${onVacation?'בחופש':'במחלה'} ביום זה. לשבץ בכל זאת?')) pickWorker('${w.id}')`
+      : `pickWorker('${w.id}')`;
+    return `<div class="popup-opt${warn?' vac-warn':''}" onclick="${clickAction}">${w.name}${warn}</div>`;
+  };
+
   let html = `<div class="popup-opt clear" onclick="pickWorker(null)">— ריק —</div>` +
-    list.map(w=>`<div class="popup-opt" onclick="pickWorker('${w.id}')">${w.name}</div>`).join('');
+    list.map(optHtml).join('');
   if(freeList.length){
     html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)">פרילנסרים</div>` +
       freeList.map(f=>`<div class="popup-opt" onclick="pickFreelancer('${f.name.replace(/'/g,"\\'")}')">👤 ${f.name}</div>`).join('');
