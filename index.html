@@ -391,6 +391,7 @@ let mivtzaimNotes = [];
 let constraintsData = [];
 let vacationRequests = [];
 let selectedConstraintWorker = '';
+let constraintsWeekOffset = 1;
 let selectedMyShiftsWorker = '';
 let selectedVacationWorker = '';
 let calMonth, calYear;
@@ -447,13 +448,13 @@ async function loadWeek(){
 }
 
 async function refreshAll(){
-  const nextWeekStart = dateStr(getWeekStart(1));
+  const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
   const [w, s, m, t, c, v, f, mv] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('topline_notes').select('*').eq('week_start', weekStart),
-    sb.from('constraints').select('*').eq('week_start', nextWeekStart),
+    sb.from('constraints').select('*').eq('week_start', constraintsWeekStart),
     sb.from('vacation_requests').select('*').order('from_date'),
     sb.from('freelancers').select('*').order('name'),
     sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart)
@@ -469,6 +470,13 @@ async function refreshAll(){
   if(!workers.length) await seedWorkers();
   else await backfillWorkerEmails();
   await backfillFreelancers();
+  render();
+}
+async function changeConstraintsWeek(delta){
+  constraintsWeekOffset += delta;
+  const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
+  const {data} = await sb.from('constraints').select('*').eq('week_start', constraintsWeekStart);
+  constraintsData = data || [];
   render();
 }
 
@@ -1322,9 +1330,14 @@ async function pickFreelancer(name){
 
 /* ---------- אילוצים לשבוע הבא ---------- */
 function renderConstraints(){
-  const nextSunday = getWeekStart(1);
+  const nextSunday = getWeekStart(constraintsWeekOffset);
   const activeWorkers = workers.filter(w=>w.active);
-  let html = `<div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע ${fmtWeekLabel(nextSunday)}.</div>`;
+  let html = `<div class="week-nav" style="display:inline-flex;margin-bottom:10px">
+    <button class="btn btn-sm" onclick="changeConstraintsWeek(-1)">◀</button>
+    <span class="week-label" style="margin:0 8px">${fmtWeekLabel(nextSunday)}</span>
+    <button class="btn btn-sm" onclick="changeConstraintsWeek(1)">▶</button>
+  </div>
+  <div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
   html += `<select class="worker-select" onchange="selectedConstraintWorker=this.value;render()">
     <option value="">— בחר את שמך —</option>
     ${activeWorkers.map(w=>`<option value="${w.id}" ${selectedConstraintWorker===w.id?'selected':''}>${w.name}</option>`).join('')}
@@ -1362,7 +1375,7 @@ const WORKER_REGION = {
   'גל שני':'haifa'
 };
 function renderConstraintsOverview(){
-  const nextSunday = getWeekStart(1);
+  const nextSunday = getWeekStart(constraintsWeekOffset);
   const activeWorkers = workers.filter(w=>w.active);
   const groupOrder = [
     {key:'ta', label:'צלמי ת"א', type:'photographer'},
@@ -1420,7 +1433,7 @@ function openConstraintPopup(day){
   document.getElementById('popup-overlay').classList.add('show');
 }
 async function pickConstraintStatus(status){
-  const nextWeekStart = dateStr(getWeekStart(1));
+  const nextWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
   const day = constraintPopupDay;
   const existing = constraintsData.find(c=>c.worker_id===selectedConstraintWorker && c.day_of_week===day);
   let note = existing ? (existing.note||'') : '';
