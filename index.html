@@ -251,7 +251,6 @@ h1{font-size:19px;font-weight:600}
       </div>
       <button class="btn" id="screenshot-btn" style="display:none" onclick="screenshotTable()">📷 צלם טבלה</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
-      <button class="btn" id="copy-special-btn" style="display:none" onclick="copySpecialEventsFromPrevWeek()">📋 העתק אירועים מיוחדים משבוע קודם</button>
       <button class="btn" id="edit-toggle" onclick="toggleEdit()">🔒 ערוך</button>
     </div>
   </div>
@@ -612,7 +611,6 @@ function toggleEdit(){
   document.getElementById('edit-toggle').textContent = editMode ? '🔓 מצב עריכה פעיל' : '🔒 ערוך';
   document.getElementById('edit-toggle').className = editMode ? 'btn badge-editmode' : 'btn';
   document.getElementById('stats-btn').style.display = editMode ? '' : 'none';
-  document.getElementById('copy-special-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   if(!editMode && activeTab==='workers') activeTab = 'schedule';
   render();
@@ -691,6 +689,7 @@ function shiftCardHtml(s){
     <div class="worker-pill ${rname?'filled':'empty'}" onclick="openWorkerPopup('shift','${s.id}','recorder')">${rname||(sickRName?'+ שבץ מחליף':'+ הוסף מקליט')}</div>
     <input class="freelance-input" placeholder="או הקלד שם פרילנס" value="${s.freelance_recorder_name||''}" onchange="updateShift('${s.id}','freelance_recorder_name',this.value)">
     ${s.recorder_id && !sickRName ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markShiftSick('${s.id}','recorder')">🤒 סמן מחלה</button>` : ''}
+    ${(s.region==='special1'||s.region==='special2') ? `<button class="btn btn-sm" style="width:100%;margin-top:5px" onclick="copyShiftToDay('${s.id}')">📋 העתק ליום אחר</button>` : ''}
   </div>`;
 }
 function teamCardHtml(t){
@@ -1682,26 +1681,47 @@ function copyScheduleText(){
   doCopy(out);
 }
 
-function shiftDateStr(ds, deltaDays){
-  const [y,m,d] = ds.split('-').map(Number);
-  const dt = new Date(y, m-1, d);
-  dt.setDate(dt.getDate()+deltaDays);
-  return dateStr(dt);
+function parseDayIndex(input){
+  if(!input) return null;
+  const t = input.trim();
+  const byLabel = DAYS.findIndex(d=>d.label===t);
+  if(byLabel>=0) return byLabel;
+  const idx = DAYS_SHORT.indexOf(t);
+  if(idx>=0) return idx;
+  return null;
 }
-async function copySpecialEventsFromPrevWeek(){
-  const prevWeekStart = shiftDateStr(weekStart, -7);
-  const {data} = await sb.from('shifts').select('*').eq('week_start', prevWeekStart).in('region', ['special1','special2']);
-  if(!data || !data.length){ alert('לא נמצאו אירועים מיוחדים בשבוע הקודם להעתקה.'); return; }
-  if(!confirm(`נמצאו ${data.length} שורות אירועים מיוחדים בשבוע הקודם (${prevWeekStart}). להעתיק לשבוע הנוכחי?`)) return;
-  const rows = data.map(s=>({
-    week_start: weekStart, region: s.region, day_of_week: s.day_of_week, label: s.label,
+async function copyShiftToDay(shiftId){
+  const s = shifts.find(x=>x.id===shiftId);
+  if(!s) return;
+  const dayInput = prompt('להעתיק לאיזה יום? (כתוב שם מלא: ראשון / שני / שלישי / רביעי / חמישי / שישי / שבת)', '');
+  if(dayInput===null) return;
+  const dayIdx = parseDayIndex(dayInput);
+  if(dayIdx===null){ alert('לא זיהיתי את היום. נסה שוב עם שם מלא כמו "שני" או "שלישי".'); return; }
+  const weekInput = prompt('לאיזה שבוע להעתיק? השאר "0" לשבוע הנוכחי (שאתה צופה בו כרגע), או כתוב מספר שבועות קדימה — למשל 1 = שבוע הבא, 2 = עוד שבועיים', '0');
+  if(weekInput===null) return;
+  const weeksAhead = parseInt(weekInput, 10) || 0;
+  const targetWeekStart = weeksAhead===0 ? weekStart : dateStr(getWeekStart(weekOffset + weeksAhead));
+  const isCurrentWeek = targetWeekStart === weekStart;
+
+  let maxOrder = 0;
+  if(isCurrentWeek){
+    maxOrder = Math.max(0, ...shifts.filter(x=>x.region===s.region && x.day_of_week===dayIdx).map(x=>x.row_order+1), 0);
+  } else {
+    const {data: existingRows} = await sb.from('shifts').select('row_order').eq('week_start', targetWeekStart).eq('region', s.region).eq('day_of_week', dayIdx);
+    maxOrder = Math.max(0, ...(existingRows||[]).map(x=>x.row_order+1), 0);
+  }
+
+  const {data} = await sb.from('shifts').insert({
+    week_start: targetWeekStart, region: s.region, day_of_week: dayIdx, label: s.label,
     start_time: s.start_time, end_time: s.end_time, worker_id: s.worker_id, recorder_id: s.recorder_id,
-    freelance_name: s.freelance_name||'', freelance_recorder_name: s.freelance_recorder_name||'', row_order: s.row_order
-  }));
-  const {data: inserted} = await sb.from('shifts').insert(rows).select();
-  if(inserted) shifts.push(...inserted);
+    freelance_name: s.freelance_name||'', freelance_recorder_name: s.freelance_recorder_name||'', row_order: maxOrder
+  }).select();
+
+  if(data){
+    if(isCurrentWeek) shifts.push(data[0]);
+    alert(isCurrentWeek ? 'הועתק בהצלחה!' : `הועתק בהצלחה לשבוע ${fmtWeekLabel(getWeekStart(weekOffset+weeksAhead))} (נשמר, לא יופיע כאן כי אתה צופה בשבוע אחר)`);
+  }
   render();
-  alert('הועתק בהצלחה!');
 }
 
 /* ===================== סטטיסטיקת שיבוצים ===================== */
