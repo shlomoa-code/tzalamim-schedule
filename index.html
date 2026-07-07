@@ -1362,6 +1362,7 @@ const WORKER_REGION = {
   'גל שני':'haifa'
 };
 function renderConstraintsOverview(){
+  const nextSunday = getWeekStart(1);
   const activeWorkers = workers.filter(w=>w.active);
   const groupOrder = [
     {key:'ta', label:'צלמי ת"א', type:'photographer'},
@@ -1402,7 +1403,11 @@ function renderConstraintsOverview(){
 
   let html = `<h3 style="margin:22px 0 10px;font-size:14px">סקירה — כל העובדים</h3>
   <div class="table-scroll"><table class="master-table">
-    <thead><tr><th class="row-label-col">עובד</th>${DAYS.map(d=>`<th>${d.label}</th>`).join('')}</tr></thead>
+    <thead><tr><th class="row-label-col">עובד</th>${DAYS.map(d=>{
+      const dd = new Date(nextSunday); dd.setDate(dd.getDate()+d.i);
+      const ds = dateStr(dd);
+      return `<th>${d.label}<span class="dnum">${ds.slice(8,10)}/${ds.slice(5,7)}</span></th>`;
+    }).join('')}</tr></thead>
     <tbody>${bodyRows}</tbody>
   </table></div>`;
   return html;
