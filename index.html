@@ -190,6 +190,7 @@ h1{font-size:19px;font-weight:600}
 .popup-opt:hover{background:var(--bg)}
 .popup-opt.clear{color:var(--red)}
 .popup-opt.vac-warn{color:var(--amber);font-weight:600;background:var(--amber-bg)}
+.popup-opt.pref-info{color:var(--blue);font-weight:500;background:var(--blue-bg)}
 .badge-editmode{background:var(--green-bg);color:var(--green);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600}
 .empty-msg{color:var(--muted);font-size:12px;text-align:center;padding:20px}
 
@@ -1314,28 +1315,34 @@ async function openWorkerPopup(kind, id, role){
       if(v.status==='approved' && v.from_date<=targetDate && v.to_date>=targetDate) vacationIds.add(v.worker_id);
     });
   }
-  let sickIds = new Set();
-  let compIds = new Set();
+  const constraintMap = new Map();
   if(targetDate){
     const targetWeekStart = sundayOfDateStr(targetDate);
     try{
-      const {data} = await sb.from('constraints').select('worker_id,status').eq('week_start', targetWeekStart).eq('day_of_week', dayIdx).in('status',['sick','comp_day']);
-      (data||[]).forEach(r=>{
-        if(r.status==='sick') sickIds.add(r.worker_id);
-        if(r.status==='comp_day') compIds.add(r.worker_id);
-      });
-    }catch(e){ console.warn('sick/comp check failed', e); }
+      const {data} = await sb.from('constraints').select('worker_id,status,note').eq('week_start', targetWeekStart).eq('day_of_week', dayIdx);
+      (data||[]).forEach(r=>{ constraintMap.set(r.worker_id, {status:r.status, note:r.note||''}); });
+    }catch(e){ console.warn('constraint check failed', e); }
   }
 
   const optHtml = w=>{
     const onVacation = vacationIds.has(w.id);
-    const onComp = compIds.has(w.id);
-    const onSick = sickIds.has(w.id);
-    const warn = onVacation ? ' 🏖️ (בחופש)' : (onComp ? ' 🔁 (יום תמורה)' : (onSick ? ' 🤒 (מחלה מוצהרת)' : ''));
-    const clickAction = (onVacation||onComp||onSick)
-      ? `if(confirm('${w.name} מוצהר/ת ${onVacation?'בחופש':(onComp?'ביום תמורה':'במחלה')} ביום זה. לשבץ בכל זאת?')) pickWorker('${w.id}')`
+    const cinfo = constraintMap.get(w.id);
+    const cstatus = cinfo ? cinfo.status : null;
+    let warn = '';
+    let blocking = false;
+    if(onVacation){ warn = ' 🏖️ (בחופש)'; blocking = true; }
+    else if(cstatus==='comp_day'){ warn = ' 🔁 (יום תמורה)'; blocking = true; }
+    else if(cstatus==='sick'){ warn = ' 🤒 (מחלה מוצהרת)'; blocking = true; }
+    else if(cstatus && cstatus!=='available'){
+      const st = CONSTRAINT_STATUSES.find(x=>x.id===cstatus);
+      const label = st ? st.label : cstatus;
+      warn = ` 🕐 (${label}${cinfo.note?' — '+cinfo.note:''})`;
+    }
+    const clickAction = blocking
+      ? `if(confirm('${w.name} מוצהר/ת ${onVacation?'בחופש':(cstatus==='comp_day'?'ביום תמורה':'במחלה')} ביום זה. לשבץ בכל זאת?')) pickWorker('${w.id}')`
       : `pickWorker('${w.id}')`;
-    return `<div class="popup-opt${warn?' vac-warn':''}" onclick="${clickAction}">${w.name}${warn}</div>`;
+    const cls = blocking ? ' vac-warn' : (warn ? ' pref-info' : '');
+    return `<div class="popup-opt${cls}" onclick="${clickAction}">${w.name}${warn}</div>`;
   };
 
   let html = `<div class="popup-opt clear" onclick="pickWorker(null)">— ריק —</div>` +
