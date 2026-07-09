@@ -215,6 +215,8 @@ h1{font-size:19px;font-weight:600}
 .overview-cell.must-pm{background:#C47A00;color:#fff}
 .overview-cell.sick{background:#F1E6FB;color:#6D28D9}
 .overview-cell.comp-day{background:#E1F5EE;color:#0F6E56}
+.duty-original{color:var(--blue);font-weight:700}
+.duty-replace{color:var(--amber);font-weight:700}
 
 .vac-form{display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:20px}
 .vac-form .field{display:flex;flex-direction:column;gap:4px}
@@ -253,6 +255,7 @@ h1{font-size:19px;font-weight:600}
         <button class="btn btn-sm" onclick="changeWeek(1)">▶</button>
       </div>
       <button class="btn" id="screenshot-btn" style="display:none" onclick="screenshotTable()">📷 צלם טבלה</button>
+      <button class="btn" id="import-duty-btn" style="display:none" onclick="importDutyToSchedule()">📥 ייבוא מלוח תורנויות</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
       <button class="btn" id="edit-toggle" onclick="toggleEdit()">🔒 ערוך</button>
     </div>
@@ -378,6 +381,7 @@ const TABS = [
   {id:'constraints',label:'אילוצים',kind:'constraints'},
   {id:'vacations',label:'בקשת חופשה',kind:'vacations'},
   {id:'calendar',label:'לוח חופשות',kind:'calendar'},
+  {id:'duty',label:'תורנות שישי-שבת-חגים',kind:'duty'},
   {id:'workers',label:'ניהול עובדים',kind:'workers'}
 ];
 
@@ -394,6 +398,7 @@ let toplineNotes = [];
 let mivtzaimNotes = [];
 let constraintsData = [];
 let vacationRequests = [];
+let dutyRoster = [];
 let selectedConstraintWorker = '';
 let constraintsWeekOffset = 1;
 let selectedMyShiftsWorker = '';
@@ -453,7 +458,7 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, v, f, mv] = await Promise.all([
+  const [w, s, m, t, c, v, f, mv, dr] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
@@ -461,7 +466,8 @@ async function refreshAll(){
     sb.from('constraints').select('*').eq('week_start', constraintsWeekStart),
     sb.from('vacation_requests').select('*').order('from_date'),
     sb.from('freelancers').select('*').order('name'),
-    sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart)
+    sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart),
+    sb.from('duty_roster').select('*').order('duty_date')
   ]);
   workers = w.data || [];
   shifts = s.data || [];
@@ -471,6 +477,7 @@ async function refreshAll(){
   vacationRequests = v.data || [];
   freelancers = f.data || [];
   mivtzaimNotes = mv.data || [];
+  dutyRoster = dr.data || [];
   if(!workers.length) await seedWorkers();
   else await backfillWorkerEmails();
   await backfillFreelancers();
@@ -615,6 +622,7 @@ function toggleEdit(){
   document.getElementById('edit-toggle').className = editMode ? 'btn badge-editmode' : 'btn';
   document.getElementById('stats-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
+  document.getElementById('import-duty-btn').style.display = editMode ? '' : 'none';
   if(!editMode && activeTab==='workers') activeTab = 'schedule';
   render();
 }
@@ -639,6 +647,7 @@ function render(){
   else if(tab.kind==='constraints') el.innerHTML = renderConstraints();
   else if(tab.kind==='vacations') el.innerHTML = renderVacations();
   else if(tab.kind==='calendar') el.innerHTML = renderCalendar();
+  else if(tab.kind==='duty') el.innerHTML = renderDuty();
 }
 
 function workerName(id){ const w = workers.find(x=>x.id===id); return w ? w.name : null; }
@@ -1630,6 +1639,107 @@ function changeMonth(delta){
   render();
 }
 
+/* ---------- תורנות שישי-שבת-חגים ---------- */
+function renderDuty(){
+  const todayStr = dateStr(new Date());
+  const upcoming = dutyRoster.filter(d=>d.duty_date>=todayStr);
+  const past = dutyRoster.filter(d=>d.duty_date<todayStr);
+  let html = `<div class="sub" style="margin-bottom:12px">לוח תורנויות שישי-שבת וחגים לאורך השנה. גלוי לכולם, עריכה רק למנהל.</div>
+  <div class="sub" style="margin-bottom:12px"><span class="duty-original">שם בכחול</span> = שובץ במקור &nbsp; · &nbsp; <span class="duty-replace">שם בכתום</span> = החלפה בפועל (באחריות העובדים)</div>`;
+
+  if(editMode){
+    const threeWeeksAgo = shiftDateStr(todayStr, -21);
+    const reminders = [];
+    dutyRoster.forEach(d=>{
+      if(!d.day_label || !d.day_label.includes('שבת')) return;
+      if(d.comp_handled) return;
+      if(d.duty_date>todayStr || d.duty_date<threeWeeksAgo) return;
+      [d.ta1,d.ta2,d.jerusalem1,d.jerusalem2].forEach(name=>{
+        if(name && name.trim() && !name.includes('מוחמד')){
+          reminders.push({id:d.id, date:d.duty_date, name:name.trim()});
+        }
+      });
+    });
+    if(reminders.length){
+      html += `<div class="my-shifts-box" style="border-color:var(--amber)">
+        <div class="my-shifts-title" style="color:var(--amber)">⏰ תזכורת — מי עבד/ה בשבת וכדאי לתת יום תמורה (מידע בלבד, לא חוסם שיבוץ)</div>
+        <div class="my-shifts-list">
+          ${reminders.map(r=>`<div class="my-shift-card" style="background:var(--amber-bg);display:flex;justify-content:space-between;align-items:center">
+            <span>${r.name} — עבד/ה בשבת ${r.date.slice(8,10)}/${r.date.slice(5,7)}</span>
+            <button class="btn btn-sm" onclick="dismissDutyReminder('${r.id}')">✓ טופל</button>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+  }
+
+  if(editMode){
+    html += `<button class="btn btn-primary btn-sm" style="margin-bottom:12px" onclick="addDutyRow()">+ הוסף תאריך</button>`;
+  }
+  const nameHtml = (n1,n2) => {
+    if(!n1 && !n2) return '—';
+    let out = n1 ? `<span class="duty-original">${n1}</span>` : '';
+    if(n2) out += `${out?' ':''}<span class="duty-replace">↔ ${n2}</span>`;
+    return out;
+  };
+  const rowHtml = d => `<tr>
+    <td class="row-label" style="position:static;text-align:center;white-space:nowrap">${d.duty_date.slice(8,10)}/${d.duty_date.slice(5,7)}</td>
+    <td class="day-cell" style="text-align:center;font-weight:600">${d.day_label||''}</td>
+    <td class="day-cell" style="text-align:center">${nameHtml(d.ta1,d.ta2)}</td>
+    <td class="day-cell" style="text-align:center">${nameHtml(d.jerusalem1,d.jerusalem2)}</td>
+    <td class="day-cell" style="text-align:center">${editMode?`<button class="btn btn-sm" onclick="editDutyRow('${d.id}')">ערוך</button> <button class="btn btn-sm btn-danger" onclick="deleteDutyRow('${d.id}')">מחק</button>`:''}</td>
+  </tr>`;
+  html += `<div class="table-scroll"><table class="master-table">
+    <thead><tr><th>תאריך</th><th>יום/חג</th><th>ת"א</th><th>ירושלים</th><th></th></tr></thead>
+    <tbody>${upcoming.map(rowHtml).join('') || '<tr><td colspan="5" class="empty-msg">אין תאריכים עתידיים</td></tr>'}</tbody>
+  </table></div>`;
+  if(past.length){
+    html += `<h3 style="font-size:13px;margin:18px 0 8px">תאריכים שעברו</h3>
+    <div class="table-scroll"><table class="master-table">
+      <thead><tr><th>תאריך</th><th>יום/חג</th><th>ת"א</th><th>ירושלים</th><th></th></tr></thead>
+      <tbody>${past.slice().reverse().map(rowHtml).join('')}</tbody>
+    </table></div>`;
+  }
+  return html;
+}
+async function dismissDutyReminder(id){
+  await sb.from('duty_roster').update({comp_handled:true}).eq('id',id);
+  const d = dutyRoster.find(x=>x.id===id); if(d) d.comp_handled=true;
+  render();
+}
+async function addDutyRow(){
+  const date = prompt('תאריך (YYYY-MM-DD):', '');
+  if(!date) return;
+  const day_label = prompt('יום/חג (למשל: שישי, שבת, שישי - ערב פסח):', '') || '';
+  const ta1 = prompt('ת"א - שם ראשון:', '') || '';
+  const ta2 = prompt('ת"א - שם שני (לא חובה):', '') || '';
+  const jerusalem1 = prompt('ירושלים - שם ראשון:', '') || '';
+  const jerusalem2 = prompt('ירושלים - שם שני (לא חובה):', '') || '';
+  const {data, error} = await sb.from('duty_roster').insert({duty_date:date, day_label, ta1, ta2, jerusalem1, jerusalem2}).select();
+  if(error){ alert('שגיאה - יכול להיות שכבר קיים תאריך כזה: '+error.message); return; }
+  if(data) dutyRoster.push(data[0]);
+  dutyRoster.sort((a,b)=>a.duty_date.localeCompare(b.duty_date));
+  render();
+}
+async function editDutyRow(id){
+  const d = dutyRoster.find(x=>x.id===id); if(!d) return;
+  const day_label = prompt('יום/חג:', d.day_label||'');
+  if(day_label===null) return;
+  const ta1 = prompt('ת"א - שם ראשון:', d.ta1||'') ?? d.ta1;
+  const ta2 = prompt('ת"א - שם שני (לא חובה):', d.ta2||'') ?? d.ta2;
+  const jerusalem1 = prompt('ירושלים - שם ראשון:', d.jerusalem1||'') ?? d.jerusalem1;
+  const jerusalem2 = prompt('ירושלים - שם שני (לא חובה):', d.jerusalem2||'') ?? d.jerusalem2;
+  await sb.from('duty_roster').update({day_label, ta1, ta2, jerusalem1, jerusalem2}).eq('id',id);
+  Object.assign(d, {day_label, ta1, ta2, jerusalem1, jerusalem2});
+  render();
+}
+async function deleteDutyRow(id){
+  if(!confirm('למחוק את השורה הזו?')) return;
+  await sb.from('duty_roster').delete().eq('id',id);
+  dutyRoster = dutyRoster.filter(d=>d.id!==id);
+  render();
+}
+
 /* ===================== העתקת סידור לטקסט ===================== */
 function copyScheduleText(){
   const sunday = getWeekStart(weekOffset);
@@ -1744,6 +1854,60 @@ async function copyShiftToDay(shiftId){
     alert(isCurrentWeek ? 'הועתק בהצלחה!' : `הועתק בהצלחה לשבוע ${fmtWeekLabel(getWeekStart(weekOffset+weeksAhead))} (נשמר, לא יופיע כאן כי אתה צופה בשבוע אחר)`);
   }
   render();
+}
+
+function matchWorkerByFirstName(name, type){
+  if(!name) return null;
+  const first = name.trim().split(' ')[0];
+  const candidates = workers.filter(w=>w.type===type && w.active && firstName(w.name)===first);
+  return candidates.length===1 ? candidates[0] : null;
+}
+async function importDutyToSchedule(){
+  const sunday = getWeekStart(weekOffset);
+  const weekDates = DAYS.map(d=>{ const dt=new Date(sunday); dt.setDate(dt.getDate()+d.i); return dateStr(dt); });
+  const entries = dutyRoster.filter(d=>weekDates.includes(d.duty_date));
+  if(!entries.length){ alert('לא נמצאו תאריכים בלוח התורנויות בשבוע הזה.'); return; }
+
+  const imported = [];
+  const unmatched = [];
+
+  for(const entry of entries){
+    const dayIdx = weekDates.indexOf(entry.duty_date);
+    const isWeekend = dayIdx===5 || dayIdx===6;
+
+    for(const [region, name] of [['ta', entry.ta2||entry.ta1], ['jerusalem', entry.jerusalem2||entry.jerusalem1]]){
+      if(!name) continue;
+      const worker = matchWorkerByFirstName(name, 'photographer');
+      if(!worker){ unmatched.push(`${name} (${region==='ta'?'ת"א':'ירושלים'}, ${entry.duty_date})`); continue; }
+
+      let targetShift = null;
+      if(isWeekend){
+        targetShift = shifts.find(s=>s.region===region && s.day_of_week===dayIdx);
+      } else {
+        targetShift = shifts.find(s=>s.region===region && s.day_of_week===dayIdx && s.label===entry.day_label);
+      }
+
+      if(targetShift){
+        await sb.from('shifts').update({worker_id:worker.id}).eq('id',targetShift.id);
+        targetShift.worker_id = worker.id;
+      } else {
+        const label = isWeekend ? 'משמרת' : (entry.day_label || 'תורנות');
+        const time = isWeekend ? {start:'12:00', end:'22:00'} : {start:'', end:''};
+        const maxOrder = Math.max(0, ...shifts.filter(x=>x.region===region && x.day_of_week===dayIdx).map(x=>x.row_order+1), 0);
+        const {data} = await sb.from('shifts').insert({
+          week_start: weekStart, region, day_of_week: dayIdx, label,
+          start_time: time.start, end_time: time.end, worker_id: worker.id, row_order: maxOrder
+        }).select();
+        if(data) shifts.push(data[0]);
+      }
+      imported.push(`${worker.name} (${region==='ta'?'ת"א':'ירושלים'}, ${DAYS[dayIdx].label})`);
+    }
+  }
+
+  render();
+  let msg = imported.length ? `יובאו בהצלחה:\n${imported.join('\n')}` : 'לא יובא כלום.';
+  if(unmatched.length) msg += `\n\nלא זוהו (תשבץ ידנית):\n${unmatched.join('\n')}`;
+  alert(msg);
 }
 
 /* ===================== סטטיסטיקת שיבוצים ===================== */
