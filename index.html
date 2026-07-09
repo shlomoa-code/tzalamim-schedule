@@ -889,6 +889,7 @@ function teamCardHtml(t){
     <input placeholder="אזור" value="${t.area||''}" onchange="updateTeam('${t.id}','area',this.value)">
     <input type="number" min="1" placeholder="יום צילום מספר (1, 2, 3...)" value="${t.shoot_day||''}" onchange="updateTeam('${t.id}','shoot_day',this.value)">
     <div class="shift-time"><input value="${t.start_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','start_time',this.value)">–<input value="${t.end_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','end_time',this.value)"></div>
+    <button class="btn btn-sm" style="width:100%;margin-top:5px" onclick="copyTeamToDay('${t.id}')">📋 העתק ליום אחר</button>
   </div>`;
 }
 async function markPlaceholder(kind, id, role){
@@ -1984,6 +1985,41 @@ function parseDayIndex(input){
   const idx = DAYS_SHORT.indexOf(t);
   if(idx>=0) return idx;
   return null;
+}
+async function copyTeamToDay(teamId){
+  const t = magTeams.find(x=>x.id===teamId);
+  if(!t) return;
+  const dayInput = prompt('להעתיק לאיזה יום? (כתוב שם מלא: ראשון / שני / שלישי / רביעי / חמישי / שישי / שבת)', '');
+  if(dayInput===null) return;
+  const dayIdx = parseDayIndex(dayInput);
+  if(dayIdx===null){ alert('לא זיהיתי את היום. נסה שוב עם שם מלא כמו "שני" או "שלישי".'); return; }
+  const weekInput = prompt('לאיזה שבוע להעתיק? השאר "0" לשבוע הנוכחי (שאתה צופה בו כרגע), או כתוב מספר שבועות קדימה — למשל 1 = שבוע הבא', '0');
+  if(weekInput===null) return;
+  const weeksAhead = parseInt(weekInput, 10) || 0;
+  const targetWeekStart = weeksAhead===0 ? weekStart : dateStr(getWeekStart(weekOffset + weeksAhead));
+  const isCurrentWeek = targetWeekStart === weekStart;
+
+  let maxOrder = 0;
+  if(isCurrentWeek){
+    maxOrder = Math.max(0, ...magTeams.filter(x=>x.magazine===t.magazine && x.day_of_week===dayIdx).map(x=>x.row_order+1), 0);
+  } else {
+    const {data: existingRows} = await sb.from('magazine_teams').select('row_order').eq('week_start', targetWeekStart).eq('magazine', t.magazine).eq('day_of_week', dayIdx);
+    maxOrder = Math.max(0, ...(existingRows||[]).map(x=>x.row_order+1), 0);
+  }
+
+  const {data} = await sb.from('magazine_teams').insert({
+    week_start: targetWeekStart, magazine: t.magazine, day_of_week: dayIdx,
+    photographer_id: t.photographer_id, recorder_id: t.recorder_id,
+    freelance_photographer_name: t.freelance_photographer_name||'', freelance_recorder_name: t.freelance_recorder_name||'',
+    reporter_name: t.reporter_name||'', topic: t.topic||'', area: t.area||'', shoot_day: t.shoot_day||'',
+    start_time: t.start_time||'', end_time: t.end_time||'', row_order: maxOrder
+  }).select();
+
+  if(data){
+    if(isCurrentWeek) magTeams.push(data[0]);
+    alert(isCurrentWeek ? 'הועתק בהצלחה!' : `הועתק בהצלחה לשבוע ${fmtWeekLabel(getWeekStart(weekOffset+weeksAhead))} (נשמר, לא יופיע כאן כי אתה צופה בשבוע אחר)`);
+  }
+  render();
 }
 async function copyShiftToDay(shiftId){
   const s = shifts.find(x=>x.id===shiftId);
