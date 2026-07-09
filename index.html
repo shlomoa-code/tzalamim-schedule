@@ -505,6 +505,7 @@ const TABS = [
   {id:'vacations',label:'בקשת חופשה',kind:'vacations'},
   {id:'calendar',label:'לוח חופשות',kind:'calendar'},
   {id:'duty',label:'תורנות שישי-שבת-חגים',kind:'duty'},
+  {id:'overview',label:'מבט שבועי לכל עובד',kind:'overview'},
   {id:'workers',label:'ניהול עובדים',kind:'workers'}
 ];
 
@@ -758,7 +759,7 @@ function toggleEdit(){
   document.getElementById('shoot-report-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   document.getElementById('import-duty-btn').style.display = editMode ? '' : 'none';
-  if(!editMode && activeTab==='workers') activeTab = 'schedule';
+  if(!editMode && (activeTab==='workers' || activeTab==='overview')) activeTab = 'schedule';
   render();
 }
 
@@ -767,7 +768,7 @@ function changeWeek(delta){ weekOffset += delta; loadWeek(); }
 /* ===================== ניווט טאבים ===================== */
 function buildTabs(){
   const el = document.getElementById('tabs');
-  const visibleTabs = TABS.filter(t=> t.kind!=='workers' || editMode);
+  const visibleTabs = TABS.filter(t=> (t.kind!=='workers' && t.kind!=='overview') || editMode);
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
 }
 function switchTab(id){ activeTab = id; render(); }
@@ -783,6 +784,7 @@ function render(){
   else if(tab.kind==='vacations') el.innerHTML = renderVacations();
   else if(tab.kind==='calendar') el.innerHTML = renderCalendar();
   else if(tab.kind==='duty') el.innerHTML = renderDuty();
+  else if(tab.kind==='overview') el.innerHTML = renderOverview();
 }
 
 function workerName(id){ const w = workers.find(x=>x.id===id); return w ? w.name : null; }
@@ -1499,9 +1501,12 @@ async function openWorkerPopup(kind, id, role){
 
   // בדיקת שיבוץ כפול — אותו עובד כבר משובץ באותו יום במקום אחר בסידור
   const doubleBookedMap = new Map();
-  if(dayIdx!=null){
+  let isEditingOnCall = false;
+  if(kind==='shift'){ const cur = shifts.find(x=>x.id===id); if(cur && cur.label==='כונן') isEditingOnCall = true; }
+  if(dayIdx!=null && !isEditingOnCall){
     shifts.forEach(s=>{
       if(s.day_of_week!==dayIdx) return;
+      if(s.label==='כונן') return; // כוננות לא נחשבת "משמרת" לצורך התנגשות
       if(kind==='shift' && s.id===id) return;
       const where = `${REGIONS[s.region]?.name||s.region} — ${s.label}`;
       if(s.worker_id && !doubleBookedMap.has(s.worker_id)) doubleBookedMap.set(s.worker_id, where);
@@ -1826,6 +1831,65 @@ function changeMonth(delta){
 }
 
 /* ---------- תורנות שישי-שבת-חגים ---------- */
+/* ---------- מבט שבועי לכל עובד (רק למנהל) ---------- */
+function workerDayStatus(workerId, dayIdx, ds){
+  const items = [];
+  let hasRealShift = false;
+  shifts.forEach(s=>{
+    if(s.day_of_week!==dayIdx) return;
+    if(s.worker_id===workerId || s.recorder_id===workerId){
+      const regionName = REGIONS[s.region]?.name || s.region;
+      items.push(s.label==='כונן' ? `כונן (${regionName})` : regionName);
+      if(s.label!=='כונן') hasRealShift = true;
+    }
+    if(s.sick_worker_id===workerId || s.sick_recorder_id===workerId) items.push('🤒 מחלה');
+  });
+  magTeams.forEach(t=>{
+    if(t.day_of_week!==dayIdx) return;
+    if(t.photographer_id===workerId || t.recorder_id===workerId){
+      items.push(MAGAZINES[t.magazine]?.name || t.magazine);
+      hasRealShift = true;
+    }
+    if(t.sick_photographer_id===workerId || t.sick_recorder_id===workerId) items.push('🤒 מחלה');
+  });
+  const onVacation = vacationRequests.some(v=>v.status==='approved' && v.worker_id===workerId && v.from_date<=ds && v.to_date>=ds);
+  if(onVacation) items.push('🏖️ חופש');
+  return {items, hasRealShift};
+}
+function renderOverview(){
+  const sunday = getWeekStart(weekOffset);
+  const weekDates = DAYS.map(d=>{ const dt=new Date(sunday); dt.setDate(dt.getDate()+d.i); return dateStr(dt); });
+  const activeWorkers = workers.filter(w=>w.active).sort((a,b)=>a.name.localeCompare(b.name,'he'));
+
+  let totalMissed = 0;
+  const rowHtml = w=>{
+    let weekCount = 0;
+    const cells = DAYS.map(d=>{
+      const {items, hasRealShift} = workerDayStatus(w.id, d.i, weekDates[d.i]);
+      if(hasRealShift) weekCount++;
+      const content = items.length ? items.join('<br>') : '';
+      return `<td class="day-cell overview-cell" style="font-size:10px">${content}</td>`;
+    }).join('');
+    const missed = weekCount===0;
+    if(missed) totalMissed++;
+    return `<tr${missed?' style="background:var(--red-bg)"':''}><td class="row-label">${missed?'⚠️ ':''}${w.name}</td>${cells}<td class="row-label" style="text-align:center">${weekCount}</td></tr>`;
+  };
+
+  const header = DAYS.map((d,i)=>{
+    const ds = weekDates[i];
+    return `<th>${d.label}<span class="dnum">${ds.slice(8,10)}/${ds.slice(5,7)}</span></th>`;
+  }).join('');
+
+  const rows = activeWorkers.map(rowHtml).join('');
+
+  return `<div class="sub" style="margin-bottom:12px">מבט מרוכז — מי משובץ/מחלה/חופש בכל יום השבוע. שורה אדומה = לא קיבל/ה אף משמרת אמיתית השבוע (כוננות בלבד לא נספרת).</div>
+  <div class="table-scroll"><table class="master-table">
+    <thead><tr><th class="row-label-col">עובד</th>${header}<th>סה"כ</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>
+  <div class="sub" style="margin-top:10px">${totalMissed ? `⚠️ ${totalMissed} עובדים בלי אף משמרת השבוע` : '✅ לכולם יש לפחות משמרת אחת השבוע'}</div>`;
+}
+
 function renderDuty(){
   const todayStr = dateStr(new Date());
   const upcoming = dutyRoster.filter(d=>d.duty_date>=todayStr);
