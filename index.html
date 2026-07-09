@@ -264,6 +264,7 @@ h1{font-size:19px;font-weight:600}
       <button class="btn" id="screenshot-btn" style="display:none" onclick="screenshotTable()">📷 צלם טבלה</button>
       <button class="btn" id="import-duty-btn" style="display:none" onclick="importDutyToSchedule()">📥 ייבוא מלוח תורנויות</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
+      <button class="btn" id="shoot-report-btn" style="display:none" onclick="showShootDayReport()">🎬 דוח ימי צילום</button>
       <button class="btn" id="edit-toggle" onclick="toggleEdit()">🔒 ערוך</button>
     </div>
   </div>
@@ -754,6 +755,7 @@ function toggleEdit(){
   document.getElementById('edit-toggle').textContent = editMode ? '🔓 מצב עריכה פעיל' : '🔒 ערוך';
   document.getElementById('edit-toggle').className = editMode ? 'btn badge-editmode' : 'btn';
   document.getElementById('stats-btn').style.display = editMode ? '' : 'none';
+  document.getElementById('shoot-report-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   document.getElementById('import-duty-btn').style.display = editMode ? '' : 'none';
   if(!editMode && activeTab==='workers') activeTab = 'schedule';
@@ -855,7 +857,7 @@ function teamCardHtml(t){
     const combined = dP && dR ? `${dP} + ${dR}` : (dP || dR || null);
     if(!combined && !sickP && !sickR) return ''; // תא ריק - לא מציגים כלום
     const isFreelance = !!(t.freelance_photographer_name || t.freelance_recorder_name);
-    const hasDetails = t.reporter_name || t.topic || t.area || t.start_time;
+    const hasDetails = t.reporter_name || t.topic || t.area || t.shoot_day || t.start_time;
     return `<div class="mini-card ${hasDetails?'clickable':''}" ${hasDetails?`onclick="openTeamDetails('${t.id}')"`:''}>
       ${sickP?`<div class="sick-badge">🤒 ${sickP}</div>`:''}
       ${sickR?`<div class="sick-badge">🤒 ${sickR}</div>`:''}
@@ -885,6 +887,7 @@ function teamCardHtml(t){
     <input placeholder="כתב" value="${t.reporter_name||''}" onchange="updateTeam('${t.id}','reporter_name',this.value)">
     <input placeholder="נושא" value="${t.topic||''}" onchange="updateTeam('${t.id}','topic',this.value)">
     <input placeholder="אזור" value="${t.area||''}" onchange="updateTeam('${t.id}','area',this.value)">
+    <input type="number" min="1" placeholder="יום צילום מספר (1, 2, 3...)" value="${t.shoot_day||''}" onchange="updateTeam('${t.id}','shoot_day',this.value)">
     <div class="shift-time"><input value="${t.start_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','start_time',this.value)">–<input value="${t.end_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','end_time',this.value)"></div>
   </div>`;
 }
@@ -914,6 +917,7 @@ function openTeamDetails(id){
     ${t.reporter_name?`<div class="popup-opt">✍️ כתב: ${t.reporter_name}</div>`:''}
     ${t.topic?`<div class="popup-opt">📝 נושא: ${t.topic}</div>`:''}
     ${t.area?`<div class="popup-opt">📍 אזור: ${t.area}</div>`:''}
+    ${t.shoot_day?`<div class="popup-opt">🎬 יום צילום: ${t.shoot_day}</div>`:''}
     ${t.start_time?`<div class="popup-opt">🕐 שעות: ${t.start_time}–${t.end_time}</div>`:''}
   `;
   document.getElementById('popup-overlay').classList.add('show');
@@ -2083,6 +2087,41 @@ function computeWorkerCounts(){
   });
   return counts;
 }
+/* ===================== דוח ימי צילום לכתבות ===================== */
+async function showShootDayReport(){
+  document.getElementById('popup-title').textContent = 'דוח ימי צילום לכתבות';
+  document.getElementById('popup-opts').innerHTML = `<div class="empty-msg">טוען...</div>`;
+  document.getElementById('popup-overlay').classList.add('show');
+
+  const {data, error} = await sb.from('magazine_teams').select('reporter_name,topic,shoot_day');
+  if(error){
+    document.getElementById('popup-opts').innerHTML = `<div class="empty-msg">שגיאה בטעינת הדוח.</div>`;
+    return;
+  }
+
+  const groups = {};
+  (data||[]).forEach(t=>{
+    const reporter = (t.reporter_name||'').trim();
+    if(!reporter) return;
+    const key = `${reporter} — ${(t.topic||'').trim() || 'ללא נושא'}`;
+    if(!groups[key]) groups[key] = new Set();
+    const n = parseInt(t.shoot_day, 10);
+    if(!isNaN(n)) groups[key].add(n);
+  });
+
+  const rows = Object.entries(groups).map(([key, daysSet])=>{
+    const days = [...daysSet].sort((a,b)=>a-b);
+    return {key, maxDay: days.length ? Math.max(...days) : 0, days};
+  }).sort((a,b)=>b.maxDay-a.maxDay);
+
+  document.getElementById('popup-opts').innerHTML = rows.length ? rows.map(r=>`
+    <div class="popup-opt" style="cursor:default;display:block">
+      <b>${r.key}</b><br>
+      <span style="font-size:11px;color:var(--muted)">${r.maxDay ? `סה"כ ${r.maxDay} ימי צילום (רשומים: ${r.days.join(', ')})` : 'עדיין לא נרשם מספר יום'}</span>
+    </div>
+  `).join('') : `<div class="empty-msg">אין עדיין נתונים — צריך למלא "כתב" ו"יום צילום מספר" בכרטיסי המגזין.</div>`;
+}
+
 function showStats(){
   const counts = computeWorkerCounts();
 
