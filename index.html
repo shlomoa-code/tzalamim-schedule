@@ -795,9 +795,9 @@ function splitLabelNote(label){
 }
 function shiftCardHtml(s){
   const wname = workerName(s.worker_id);
-  const displayName = s.freelance_name ? `${s.freelance_name} (פרילנס)` : wname;
+  const displayName = s.freelance_name ? (s.freelance_name==='?' ? '❓' : `${s.freelance_name} (פרילנס)`) : wname;
   const sickName = s.sick_worker_id ? workerName(s.sick_worker_id) : null;
-  const rname = s.freelance_recorder_name ? `${s.freelance_recorder_name} (פרילנס)` : workerName(s.recorder_id);
+  const rname = s.freelance_recorder_name ? (s.freelance_recorder_name==='?' ? '❓' : `${s.freelance_recorder_name} (פרילנס)`) : workerName(s.recorder_id);
   const sickRName = s.sick_recorder_id ? workerName(s.sick_recorder_id) : null;
   const showRecorderBlock = editMode || rname; // hide empty recorder slot in view mode
 
@@ -827,19 +827,25 @@ function shiftCardHtml(s){
     <span class="team-role">צלם</span>
     ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}<button onclick="clearShiftSick('${s.id}','photographer')">✕ בטל</button></div>`:''}
     <div class="worker-pill ${displayName?'filled':'empty'}" onclick="openWorkerPopup('shift','${s.id}','photographer')">${displayName||(sickName?'+ שבץ מחליף':'+ שבץ')}</div>
-    <input class="freelance-input" placeholder="או הקלד שם פרילנס" value="${s.freelance_name||''}" onchange="updateShift('${s.id}','freelance_name',this.value)">
+    <div style="display:flex;gap:3px">
+      <input class="freelance-input" style="flex:1" placeholder="או הקלד שם פרילנס" value="${s.freelance_name==='?'?'':(s.freelance_name||'')}" onchange="updateShift('${s.id}','freelance_name',this.value)">
+      <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('shift','${s.id}','photographer')">❓</button>
+    </div>
     ${s.worker_id && !sickName ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markShiftSick('${s.id}','photographer')">🤒 סמן מחלה</button>` : ''}
     <span class="team-role">מקליט (אופציונלי)</span>
     ${sickRName?`<div class="sick-badge">🤒 מחלה: ${sickRName}<button onclick="clearShiftSick('${s.id}','recorder')">✕ בטל</button></div>`:''}
     <div class="worker-pill ${rname?'filled':'empty'}" onclick="openWorkerPopup('shift','${s.id}','recorder')">${rname||(sickRName?'+ שבץ מחליף':'+ הוסף מקליט')}</div>
-    <input class="freelance-input" placeholder="או הקלד שם פרילנס" value="${s.freelance_recorder_name||''}" onchange="updateShift('${s.id}','freelance_recorder_name',this.value)">
+    <div style="display:flex;gap:3px">
+      <input class="freelance-input" style="flex:1" placeholder="או הקלד שם פרילנס" value="${s.freelance_recorder_name==='?'?'':(s.freelance_recorder_name||'')}" onchange="updateShift('${s.id}','freelance_recorder_name',this.value)">
+      <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('shift','${s.id}','recorder')">❓</button>
+    </div>
     ${s.recorder_id && !sickRName ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markShiftSick('${s.id}','recorder')">🤒 סמן מחלה</button>` : ''}
     ${(s.region==='special1'||s.region==='special2') ? `<button class="btn btn-sm" style="width:100%;margin-top:5px" onclick="copyShiftToDay('${s.id}')">📋 העתק ליום אחר</button>` : ''}
   </div>`;
 }
 function teamCardHtml(t){
-  const pname = t.freelance_photographer_name ? `${t.freelance_photographer_name} (פרילנס)` : workerName(t.photographer_id);
-  const rname = t.freelance_recorder_name ? `${t.freelance_recorder_name} (פרילנס)` : workerName(t.recorder_id);
+  const pname = t.freelance_photographer_name ? (t.freelance_photographer_name==='?' ? '❓' : `${t.freelance_photographer_name} (פרילנס)`) : workerName(t.photographer_id);
+  const rname = t.freelance_recorder_name ? (t.freelance_recorder_name==='?' ? '❓' : `${t.freelance_recorder_name} (פרילנס)`) : workerName(t.recorder_id);
   const sickP = t.sick_photographer_id ? workerName(t.sick_photographer_id) : null;
   const sickR = t.sick_recorder_id ? workerName(t.sick_recorder_id) : null;
 
@@ -863,18 +869,38 @@ function teamCardHtml(t){
     <span class="team-role">צלם</span>
     ${sickP?`<div class="sick-badge">🤒 ${sickP}<button onclick="clearTeamSick('${t.id}','photographer')">✕</button></div>`:''}
     <div class="worker-pill ${pname?'filled':'empty'}" onclick="openWorkerPopup('team','${t.id}','photographer')">${pname||(sickP?'+ מחליף':'+ בחר')}</div>
-    <input class="freelance-input" placeholder="פרילנס" value="${t.freelance_photographer_name||''}" onchange="updateTeam('${t.id}','freelance_photographer_name',this.value)">
+    <div style="display:flex;gap:3px">
+      <input class="freelance-input" style="flex:1" placeholder="פרילנס" value="${t.freelance_photographer_name==='?'?'':(t.freelance_photographer_name||'')}" onchange="updateTeam('${t.id}','freelance_photographer_name',this.value)">
+      <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('team','${t.id}','photographer')">❓</button>
+    </div>
     ${t.photographer_id && !sickP ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','photographer')">🤒 מחלה</button>` : ''}
     <span class="team-role">מקליט</span>
     ${sickR?`<div class="sick-badge">🤒 ${sickR}<button onclick="clearTeamSick('${t.id}','recorder')">✕</button></div>`:''}
     <div class="worker-pill ${rname?'filled':'empty'}" onclick="openWorkerPopup('team','${t.id}','recorder')">${rname||(sickR?'+ מחליף':'+ בחר')}</div>
-    <input class="freelance-input" placeholder="פרילנס" value="${t.freelance_recorder_name||''}" onchange="updateTeam('${t.id}','freelance_recorder_name',this.value)">
+    <div style="display:flex;gap:3px">
+      <input class="freelance-input" style="flex:1" placeholder="פרילנס" value="${t.freelance_recorder_name==='?'?'':(t.freelance_recorder_name||'')}" onchange="updateTeam('${t.id}','freelance_recorder_name',this.value)">
+      <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('team','${t.id}','recorder')">❓</button>
+    </div>
     ${t.recorder_id && !sickR ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','recorder')">🤒 מחלה</button>` : ''}
     <input placeholder="כתב" value="${t.reporter_name||''}" onchange="updateTeam('${t.id}','reporter_name',this.value)">
     <input placeholder="נושא" value="${t.topic||''}" onchange="updateTeam('${t.id}','topic',this.value)">
     <input placeholder="אזור" value="${t.area||''}" onchange="updateTeam('${t.id}','area',this.value)">
     <div class="shift-time"><input value="${t.start_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','start_time',this.value)">–<input value="${t.end_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','end_time',this.value)"></div>
   </div>`;
+}
+async function markPlaceholder(kind, id, role){
+  if(kind==='shift'){
+    const field = role==='photographer' ? 'worker_id' : 'recorder_id';
+    const freeField = role==='photographer' ? 'freelance_name' : 'freelance_recorder_name';
+    await sb.from('shifts').update({[field]:null, [freeField]:'?'}).eq('id',id);
+    const s = shifts.find(x=>x.id===id); if(s){ s[field]=null; s[freeField]='?'; }
+  } else {
+    const field = role==='photographer' ? 'photographer_id' : 'recorder_id';
+    const freeField = role==='photographer' ? 'freelance_photographer_name' : 'freelance_recorder_name';
+    await sb.from('magazine_teams').update({[field]:null, [freeField]:'?'}).eq('id',id);
+    const t = magTeams.find(x=>x.id===id); if(t){ t[field]=null; t[freeField]='?'; }
+  }
+  render();
 }
 function openTeamDetails(id){
   const t = magTeams.find(x=>x.id===id);
