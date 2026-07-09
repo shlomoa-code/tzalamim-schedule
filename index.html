@@ -239,7 +239,14 @@ h1{font-size:19px;font-weight:600}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="access-gate" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:20px;text-align:center">
+  <div style="font-size:20px;font-weight:700">🔒 סידור עבודה — צלמים ומקליטים</div>
+  <div style="color:#6B7280;font-size:14px">הזן את המייל הארגוני שלך כדי להיכנס</div>
+  <input id="access-code-input" type="email" style="padding:10px 14px;border:1px solid #E4E4E7;border-radius:8px;font-size:16px;width:260px;text-align:center;direction:ltr" placeholder="name@kan.org.il" onkeydown="if(event.key==='Enter') submitTeamAccess()">
+  <button class="btn btn-primary" onclick="submitTeamAccess()" style="padding:9px 22px">כניסה</button>
+  <div id="access-error" style="color:#A32D2D;font-size:13px;display:none">המייל לא מזוהה. פנה למנהל.</div>
+</div>
+<div class="wrap" id="app-wrap" style="display:none">
   <div class="topbar">
     <div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -2155,8 +2162,40 @@ window.addEventListener('resize', ()=>{
     if(nowMobile !== lastIsMobile){ lastIsMobile = nowMobile; render(); }
   }, 200);
 });
-loadWeek();
-setupRealtime();
+/* ===================== שער כניסה (מייל ארגוני) ===================== */
+const MANAGER_ACCESS_EMAILS = ['shlomoa@kan.org.il'];
+async function checkTeamAccess(){
+  if(localStorage.getItem('team_access_granted')==='yes'){
+    document.getElementById('access-gate').style.display = 'none';
+    document.getElementById('app-wrap').style.display = '';
+    loadWeek();
+    setupRealtime();
+  } else {
+    document.getElementById('access-code-input').focus();
+  }
+}
+async function submitTeamAccess(){
+  const val = document.getElementById('access-code-input').value.trim().toLowerCase();
+  if(!val){ return; }
+  let allowed = MANAGER_ACCESS_EMAILS.includes(val);
+  if(!allowed){
+    try{
+      const {data} = await sb.from('workers').select('id,email,active').ilike('email', val);
+      allowed = (data||[]).some(w=>w.active && w.email && w.email.toLowerCase()===val);
+    }catch(e){ console.error('access check failed', e); }
+  }
+  if(allowed){
+    localStorage.setItem('team_access_granted', 'yes');
+    localStorage.setItem('team_access_email', val);
+    document.getElementById('access-gate').style.display = 'none';
+    document.getElementById('app-wrap').style.display = '';
+    loadWeek();
+    setupRealtime();
+  } else {
+    document.getElementById('access-error').style.display = 'block';
+  }
+}
+checkTeamAccess();
 </script>
 </body>
 </html>
