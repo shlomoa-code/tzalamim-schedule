@@ -1497,22 +1497,44 @@ async function openWorkerPopup(kind, id, role){
     }catch(e){ console.warn('constraint check failed', e); }
   }
 
+  // בדיקת שיבוץ כפול — אותו עובד כבר משובץ באותו יום במקום אחר בסידור
+  const doubleBookedMap = new Map();
+  if(dayIdx!=null){
+    shifts.forEach(s=>{
+      if(s.day_of_week!==dayIdx) return;
+      if(kind==='shift' && s.id===id) return;
+      const where = `${REGIONS[s.region]?.name||s.region} — ${s.label}`;
+      if(s.worker_id && !doubleBookedMap.has(s.worker_id)) doubleBookedMap.set(s.worker_id, where);
+      if(s.recorder_id && !doubleBookedMap.has(s.recorder_id)) doubleBookedMap.set(s.recorder_id, where);
+    });
+    magTeams.forEach(t=>{
+      if(t.day_of_week!==dayIdx) return;
+      if(kind==='team' && t.id===id) return;
+      const where = MAGAZINES[t.magazine]?.name||t.magazine;
+      if(t.photographer_id && !doubleBookedMap.has(t.photographer_id)) doubleBookedMap.set(t.photographer_id, where);
+      if(t.recorder_id && !doubleBookedMap.has(t.recorder_id)) doubleBookedMap.set(t.recorder_id, where);
+    });
+  }
+
   const optHtml = w=>{
     const onVacation = vacationIds.has(w.id);
     const cinfo = constraintMap.get(w.id);
     const cstatus = cinfo ? cinfo.status : null;
+    const doubleBookedWhere = doubleBookedMap.get(w.id);
     let warn = '';
     let blocking = false;
     if(onVacation){ warn = ' 🏖️ (בחופש)'; blocking = true; }
     else if(cstatus==='comp_day'){ warn = ' 🔁 (יום תמורה)'; blocking = true; }
     else if(cstatus==='sick'){ warn = ' 🤒 (מחלה מוצהרת)'; blocking = true; }
+    else if(doubleBookedWhere){ warn = ` ⚠️ (כבר משובץ/ת: ${doubleBookedWhere})`; blocking = true; }
     else if(cstatus && cstatus!=='available'){
       const st = CONSTRAINT_STATUSES.find(x=>x.id===cstatus);
       const label = st ? st.label : cstatus;
       warn = ` 🕐 (${label}${cinfo.note?' — '+cinfo.note:''})`;
     }
+    const blockReason = onVacation?'בחופש':(cstatus==='comp_day'?'ביום תמורה':(cstatus==='sick'?'במחלה':(doubleBookedWhere?`כבר משובץ/ת היום ב-${doubleBookedWhere}`:'')));
     const clickAction = blocking
-      ? `if(confirm('${w.name} מוצהר/ת ${onVacation?'בחופש':(cstatus==='comp_day'?'ביום תמורה':'במחלה')} ביום זה. לשבץ בכל זאת?')) pickWorker('${w.id}')`
+      ? `if(confirm('${w.name} ${blockReason}. לשבץ בכל זאת?')) pickWorker('${w.id}')`
       : `pickWorker('${w.id}')`;
     const cls = blocking ? ' vac-warn' : (warn ? ' pref-info' : '');
     return `<div class="popup-opt${cls}" onclick="${clickAction}">${w.name}${warn}</div>`;
