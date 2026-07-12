@@ -227,6 +227,7 @@ h1{font-size:19px;font-weight:600}
 .vac-status.pending{background:var(--amber-bg);color:var(--amber)}
 .vac-status.approved{background:var(--green-bg);color:var(--green)}
 .vac-status.rejected{background:var(--red-bg);color:var(--red)}
+.vac-status.sicktype{background:#FFE8CC;color:#B45309}
 
 .cal-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
@@ -1028,8 +1029,12 @@ function renderAbsenceSummary(){
     });
   }
 
-  const vacationEntries = vacationRequests.filter(v=>v.status==='approved' && v.from_date<=weekEndStr && v.to_date>=weekStartStr)
+  const approvedThisWeek = vacationRequests.filter(v=>v.status==='approved' && v.from_date<=weekEndStr && v.to_date>=weekStartStr);
+  const vacationEntries = approvedThisWeek.filter(v=>v.req_type!=='sick')
     .map(v=>({name:workerName(v.worker_id), from:v.from_date, to:v.to_date}));
+  approvedThisWeek.filter(v=>v.req_type==='sick').forEach(v=>{
+    sickEntries.push({name:workerName(v.worker_id), day:`${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''}`, context:'מחלה מתוכננת'});
+  });
 
   if(!sickEntries.length && !vacationEntries.length && !compEntries.length) return '';
 
@@ -1836,6 +1841,7 @@ function renderVacations(){
     html += `<div class="vac-item">
       <div><b>${workerName(v.worker_id)||'—'}</b> · ${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''} ${(editMode && v.note)?'· '+v.note:''}</div>
       <div style="display:flex;gap:6px;align-items:center">
+        ${v.req_type==='sick'?'<span class="vac-status sicktype">🤒 מחלה</span>':''}
         <span class="vac-status ${v.status}">${v.status==='approved'?'מאושר':v.status==='rejected'?'נדחה':'ממתין'}</span>
         ${editMode?`
           ${v.status!=='approved'?`<button class="btn btn-sm btn-primary" onclick="setVacStatus('${v.id}','approved')">אשר</button>`:''}
@@ -1860,7 +1866,7 @@ async function submitVacation(){
   const to_date = document.getElementById('vac-to').value || from_date;
   const note = document.getElementById('vac-note').value;
   if(!worker_id || !from_date){ alert('נא לבחור עובד ותאריך'); return; }
-  const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'pending'}).select();
+  const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'pending', req_type:'vacation'}).select();
   if(data) vacationRequests.push(data[0]);
   sendVacationRequestEmail(workerName(worker_id), from_date, to_date, note);
   render();
@@ -1892,7 +1898,10 @@ function renderCalendar(){
     const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = ds===todayStr;
     const approved = vacationRequests.filter(v=>v.status==='approved' && ds>=v.from_date && ds<=v.to_date);
-    const tags = approved.map(v=>`<div class="vac-tag-cal" style="background:${colorFor(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`).join('');
+    const tags = approved.map(v=> v.req_type==='sick'
+      ? `<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(v.worker_id)||'—'}</div>`
+      : `<div class="vac-tag-cal" style="background:${colorFor(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`
+    ).join('');
     html += `<div class="cal-cell ${isToday?'today':''}"><div class="cal-daynum">${d}</div>${tags}</div>`;
   }
   html += `</div>`;
@@ -1927,8 +1936,8 @@ function workerDayStatus(workerId, dayIdx, ds){
     }
     if(t.sick_photographer_id===workerId || t.sick_recorder_id===workerId) items.push('🤒 מחלה (בפועל)');
   });
-  const onVacation = vacationRequests.some(v=>v.status==='approved' && v.worker_id===workerId && v.from_date<=ds && v.to_date>=ds);
-  if(onVacation) items.push('🏖️ חופש מאושר');
+  const activeVac = vacationRequests.find(v=>v.status==='approved' && v.worker_id===workerId && v.from_date<=ds && v.to_date>=ds);
+  if(activeVac) items.push(activeVac.req_type==='sick' ? '🤒 מחלה מתוכננת' : '🏖️ חופש מאושר');
   const c = overviewConstraints.find(x=>x.worker_id===workerId && x.day_of_week===dayIdx);
   if(c){
     if(c.status==='sick') items.push('🤒 מחלה (מוצהר)');
