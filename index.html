@@ -521,6 +521,7 @@ const TABS = [
   {id:'calendar',label:'לוח חופשות',kind:'calendar'},
   {id:'duty',label:'תורנות שישי-שבת-חגים',kind:'duty'},
   {id:'overview',label:'מבט שבועי לכל עובד',kind:'overview'},
+  {id:'producers',label:'ניהול מפיקים',kind:'producers'},
   {id:'workers',label:'ניהול עובדים',kind:'workers'}
 ];
 
@@ -789,7 +790,7 @@ function toggleEdit(){
   document.getElementById('shoot-report-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   document.getElementById('import-duty-btn').style.display = editMode ? '' : 'none';
-  if(!editMode && (activeTab==='workers' || activeTab==='overview')) activeTab = 'schedule';
+  if(!editMode && (activeTab==='workers' || activeTab==='overview' || activeTab==='producers')) activeTab = 'schedule';
   render();
 }
 
@@ -800,7 +801,7 @@ function buildTabs(){
   const el = document.getElementById('tabs');
   const visibleTabs = accessRole==='producer'
     ? TABS.filter(t=> t.kind==='fullschedule')
-    : TABS.filter(t=> (t.kind!=='workers' && t.kind!=='overview') || editMode);
+    : TABS.filter(t=> (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode);
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
 }
 function switchTab(id){ activeTab = id; render(); }
@@ -817,6 +818,7 @@ function render(){
   else if(tab.kind==='calendar') el.innerHTML = renderCalendar();
   else if(tab.kind==='duty') el.innerHTML = renderDuty();
   else if(tab.kind==='overview') el.innerHTML = renderOverview();
+  else if(tab.kind==='producers') el.innerHTML = renderProducers();
 }
 
 function workerName(id){ const w = workers.find(x=>x.id===id); return w ? w.name : null; }
@@ -1400,6 +1402,24 @@ async function updateMivtzaim(day, id, value){
 }
 
 /* ---------- ניהול עובדים ---------- */
+/* ---------- ניהול מפיקים (טאב נפרד, רק למנהל) ---------- */
+function renderProducers(){
+  const rowHtml = v => `<div class="wchip ${v.active?'':'inactive'}">
+      <span>${v.name} <span style="color:var(--muted);font-size:11px">(${v.email})</span></span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-danger" onclick="deleteViewer('${v.id}')">מחק</button>
+        <button class="btn btn-sm" onclick="toggleViewerActive('${v.id}',${!v.active})">${v.active?'השבת':'הפעל'}</button>
+      </div>
+    </div>`;
+  return `<div class="sub" style="margin-bottom:12px">מפיקים רואים <b>רק את הסידור השבועי</b> (כולל הערות שבתוכו) - בלי אילוצים, בקשות חופשה, לוח חופשות, תורנות, או כל דבר אחר. אין להם אפשרות עריכה בכלל - הם נכנסים דרך שער הכניסה עם המייל שלהם.</div>
+  <h3 style="font-size:14px;margin-bottom:10px">רשימת מפיקים (${viewers.length})</h3>
+  ${viewers.map(rowHtml).join('') || '<div class="empty-msg">אין עדיין מפיקים</div>'}
+  <div class="add-worker-row" style="margin-top:14px">
+    <input id="new-viewer-name" placeholder="שם">
+    <input id="new-viewer-email" placeholder="מייל" style="max-width:220px">
+    <button class="btn btn-primary btn-sm" onclick="addViewer()">הוסף מפיק</button>
+  </div>`;
+}
 function renderWorkers(){
   const counts = computeWorkerCounts();
   const photographers = workers.filter(w=>w.type==='photographer');
@@ -1438,18 +1458,6 @@ function renderWorkers(){
       <h3>פרילנסרים — מקליטים (${freeRecorders.length})</h3>
       ${freeRecorders.map(freeChip).join('') || '<div class="empty-msg">אין עדיין</div>'}
       ${editMode?`<div class="add-worker-row"><input id="new-free-recorder" placeholder="שם פרילנס מקליט"><button class="btn btn-primary btn-sm" onclick="addFreelancer('recorder')">הוסף</button></div>`:''}
-    </div>
-    <div class="wgroup">
-      <h3>מפיקים (${viewers.length})</h3>
-      ${viewers.map(v=>`<div class="wchip ${v.active?'':'inactive'}">
-          <span>${v.name} <span style="color:var(--muted);font-size:11px">(${v.email})</span></span>
-          ${editMode?`<div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-danger" onclick="deleteViewer('${v.id}')">מחק</button>
-            <button class="btn btn-sm" onclick="toggleViewerActive('${v.id}',${!v.active})">${v.active?'השבת':'הפעל'}</button>
-          </div>`:''}
-        </div>`).join('') || '<div class="empty-msg">אין עדיין</div>'}
-      ${editMode?`<div class="add-worker-row"><input id="new-viewer-name" placeholder="שם"><input id="new-viewer-email" placeholder="מייל" style="max-width:170px"><button class="btn btn-primary btn-sm" onclick="addViewer()">הוסף</button></div>`:''}
-      <div class="sub" style="margin-top:6px">מפיקים רואים <b>רק את הסידור השבועי</b> (כולל הערות שבתוכו) - בלי אילוצים, בקשות חופשה, לוח חופשות או שום דבר אחר. אין להם אפשרות עריכה בכלל.</div>
     </div>
   </div>`;
 }
