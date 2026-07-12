@@ -321,6 +321,21 @@ const DAYS = [
   {i:4,label:'חמישי'},{i:5,label:'שישי'},{i:6,label:'שבת'}
 ];
 const DAYS_SHORT = ['א','ב','ג','ד','ה','ו','ש'];
+const VIEWERS_SEED = [
+  ['שיר גונן','shirg@kan.org.il'],
+  ['עומר נצר','omern@kan.org.il'],
+  ['אורין רחמים','orinra@kan.org.il'],
+  ['אראלה לוי','arelal@kan.org.il'],
+  ['רוית דור','ravitd@kan.org.il'],
+  ['מגל אדר','magala@kan.org.il'],
+  ['אתי אטיאס','ettya@kan.org.il'],
+  ['אמיר בן אהרון','amirbe@kan.org.il'],
+  ['גל וינר','galv@kan.org.il'],
+  ["תוג'אן מנסור",'Tojanma@kan.org.il'],
+  ['עידית נוריאל גבע','Iditg@kan.org.il'],
+  ['דורית חלפון','dorith@makan.org.il'],
+  ['מאי ליטני','mayl@kan.org.il']
+];
 const DUTY_SEED = [
   ['2026-01-02','שישי','ליאור','אורן','אילן',''],
   ['2026-01-03','שבת','סודרי','','צגאו',''],
@@ -525,7 +540,9 @@ let vacationRequests = [];
 let dutyRoster = [];
 let overviewConstraints = [];
 let overviewConstraintsWeek = null;
+let viewers = [];
 let selectedConstraintWorker = '';
+let accessRole = localStorage.getItem('access_role') || 'full';
 let constraintsWeekOffset = 1;
 let selectedMyShiftsWorker = '';
 let selectedVacationWorker = '';
@@ -584,7 +601,7 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, v, f, mv, dr] = await Promise.all([
+  const [w, s, m, t, c, v, f, mv, dr, vw] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
@@ -593,7 +610,8 @@ async function refreshAll(){
     sb.from('vacation_requests').select('*').order('from_date'),
     sb.from('freelancers').select('*').order('name'),
     sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart),
-    sb.from('duty_roster').select('*').order('duty_date')
+    sb.from('duty_roster').select('*').order('duty_date'),
+    sb.from('viewers').select('*').order('name')
   ]);
   workers = w.data || [];
   shifts = s.data || [];
@@ -604,11 +622,21 @@ async function refreshAll(){
   freelancers = f.data || [];
   mivtzaimNotes = mv.data || [];
   dutyRoster = dr.data || [];
+  viewers = vw.data || [];
   if(!workers.length) await seedWorkers();
   else await backfillWorkerEmails();
   await backfillFreelancers();
   if(!dutyRoster.length) await seedDutyRoster();
+  if(!viewers.length) await seedViewers();
   render();
+}
+async function seedViewers(){
+  const rows = VIEWERS_SEED.map(r=>({name:r[0], email:r[1], active:true}));
+  try{
+    await sb.from('viewers').insert(rows);
+    const {data} = await sb.from('viewers').select('*').order('name');
+    viewers = data || [];
+  }catch(e){ console.error('viewers seed failed', e); }
 }
 async function seedDutyRoster(){
   const rows = DUTY_SEED.map(r=>({
@@ -770,7 +798,9 @@ function changeWeek(delta){ weekOffset += delta; loadWeek(); }
 /* ===================== ניווט טאבים ===================== */
 function buildTabs(){
   const el = document.getElementById('tabs');
-  const visibleTabs = TABS.filter(t=> (t.kind!=='workers' && t.kind!=='overview') || editMode);
+  const visibleTabs = accessRole==='producer'
+    ? TABS.filter(t=> t.kind==='fullschedule')
+    : TABS.filter(t=> (t.kind!=='workers' && t.kind!=='overview') || editMode);
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
 }
 function switchTab(id){ activeTab = id; render(); }
@@ -1134,7 +1164,7 @@ function renderMasterTable(){
   return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}</div>
   ${renderMyShifts()}
   ${body}
-  ${renderAbsenceSummary()}`;
+  ${accessRole==='producer' ? '' : renderAbsenceSummary()}`;
 }
 
 /* ---------- אזור שוטף ---------- */
@@ -1409,7 +1439,40 @@ function renderWorkers(){
       ${freeRecorders.map(freeChip).join('') || '<div class="empty-msg">אין עדיין</div>'}
       ${editMode?`<div class="add-worker-row"><input id="new-free-recorder" placeholder="שם פרילנס מקליט"><button class="btn btn-primary btn-sm" onclick="addFreelancer('recorder')">הוסף</button></div>`:''}
     </div>
+    <div class="wgroup">
+      <h3>מפיקים (${viewers.length})</h3>
+      ${viewers.map(v=>`<div class="wchip ${v.active?'':'inactive'}">
+          <span>${v.name} <span style="color:var(--muted);font-size:11px">(${v.email})</span></span>
+          ${editMode?`<div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-danger" onclick="deleteViewer('${v.id}')">מחק</button>
+            <button class="btn btn-sm" onclick="toggleViewerActive('${v.id}',${!v.active})">${v.active?'השבת':'הפעל'}</button>
+          </div>`:''}
+        </div>`).join('') || '<div class="empty-msg">אין עדיין</div>'}
+      ${editMode?`<div class="add-worker-row"><input id="new-viewer-name" placeholder="שם"><input id="new-viewer-email" placeholder="מייל" style="max-width:170px"><button class="btn btn-primary btn-sm" onclick="addViewer()">הוסף</button></div>`:''}
+      <div class="sub" style="margin-top:6px">מפיקים רואים <b>רק את הסידור השבועי</b> (כולל הערות שבתוכו) - בלי אילוצים, בקשות חופשה, לוח חופשות או שום דבר אחר. אין להם אפשרות עריכה בכלל.</div>
+    </div>
   </div>`;
+}
+async function addViewer(){
+  const name = document.getElementById('new-viewer-name').value.trim();
+  const email = document.getElementById('new-viewer-email').value.trim();
+  if(!name || !email) return;
+  const {data} = await sb.from('viewers').insert({name, email, active:true}).select();
+  if(data) viewers.push(data[0]);
+  document.getElementById('new-viewer-name').value='';
+  document.getElementById('new-viewer-email').value='';
+  render();
+}
+async function toggleViewerActive(id, active){
+  await sb.from('viewers').update({active}).eq('id',id);
+  const v = viewers.find(x=>x.id===id); if(v) v.active=active;
+  render();
+}
+async function deleteViewer(id){
+  if(!confirm('למחוק את הצופה הזה?')) return;
+  await sb.from('viewers').delete().eq('id',id);
+  viewers = viewers.filter(v=>v.id!==id);
+  render();
 }
 async function addFreelancer(type){
   const inputId = type==='photographer' ? 'new-free-photog' : 'new-free-recorder';
@@ -2386,15 +2449,25 @@ async function submitTeamAccess(){
   const val = document.getElementById('access-code-input').value.trim().toLowerCase();
   if(!val){ return; }
   let allowed = MANAGER_ACCESS_EMAILS.includes(val);
+  let role = 'full';
   if(!allowed){
     try{
       const {data} = await sb.from('workers').select('id,email,active').ilike('email', val);
       allowed = (data||[]).some(w=>w.active && w.email && w.email.toLowerCase()===val);
     }catch(e){ console.error('access check failed', e); }
   }
+  if(!allowed){
+    try{
+      const {data} = await sb.from('viewers').select('id,email,active').ilike('email', val);
+      allowed = (data||[]).some(w=>w.active && w.email && w.email.toLowerCase()===val);
+      if(allowed) role = 'producer';
+    }catch(e){ console.error('viewer access check failed', e); }
+  }
   if(allowed){
     localStorage.setItem('team_access_granted', 'yes');
     localStorage.setItem('team_access_email', val);
+    localStorage.setItem('access_role', role);
+    accessRole = role;
     document.getElementById('access-gate').style.display = 'none';
     document.getElementById('app-wrap').style.display = '';
     loadWeek();
