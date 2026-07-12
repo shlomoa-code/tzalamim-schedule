@@ -286,7 +286,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-12-01';
+const APP_VERSION = '2026-07-12-02';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -548,6 +548,7 @@ let vacationRequests = [];
 let dutyRoster = [];
 let overviewConstraints = [];
 let overviewConstraintsWeek = null;
+let scheduleWeekConstraints = [];
 let viewers = [];
 let selectedConstraintWorker = '';
 let accessRole = localStorage.getItem('access_role') || 'full';
@@ -609,7 +610,7 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, v, f, mv, dr, vw] = await Promise.all([
+  const [w, s, m, t, c, v, f, mv, dr, vw, swc] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
@@ -619,7 +620,8 @@ async function refreshAll(){
     sb.from('freelancers').select('*').order('name'),
     sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart),
     sb.from('duty_roster').select('*').order('duty_date'),
-    sb.from('viewers').select('*').order('name')
+    sb.from('viewers').select('*').order('name'),
+    sb.from('constraints').select('*').eq('week_start', weekStart)
   ]);
   workers = w.data || [];
   shifts = s.data || [];
@@ -631,6 +633,7 @@ async function refreshAll(){
   mivtzaimNotes = mv.data || [];
   dutyRoster = dr.data || [];
   viewers = vw.data || [];
+  scheduleWeekConstraints = swc.data || [];
   if(!workers.length) await seedWorkers();
   else await backfillWorkerEmails();
   await backfillFreelancers();
@@ -1018,11 +1021,10 @@ function renderAbsenceSummary(){
     if(t.sick_photographer_id){ sickEntries.push({name:workerName(t.sick_photographer_id), day:DAYS[t.day_of_week].label, context:MAGAZINES[t.magazine]?.name||t.magazine}); }
     if(t.sick_recorder_id){ sickEntries.push({name:workerName(t.sick_recorder_id), day:DAYS[t.day_of_week].label, context:MAGAZINES[t.magazine]?.name||t.magazine}); }
   });
-  // אילוצים שהוצהרו כ"מחלה" או "יום תמורה" - מוצגים בסידור של אותו שבוע שאליו הם שייכים בפועל
-  const constraintsLoadedWeekStr = dateStr(getWeekStart(constraintsWeekOffset));
+  // אילוצים שהוצהרו כ"מחלה" או "יום תמורה" עבור השבוע המוצג כרגע בסידור (ללא תלות בניווט בטאב האילוצים)
   const compEntries = [];
-  if(weekStartStr === constraintsLoadedWeekStr){
-    constraintsData.forEach(c=>{
+  {
+    scheduleWeekConstraints.forEach(c=>{
       if(c.status==='sick'){
         const name = workerName(c.worker_id);
         const day = DAYS[c.day_of_week].label;
