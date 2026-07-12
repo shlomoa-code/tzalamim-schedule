@@ -125,21 +125,21 @@ h1{font-size:19px;font-weight:600}
 @media(max-width:700px){
   .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
   .master-table{table-layout:auto}
-  .master-table th,.master-table td{padding:4px 3px}
+  .master-table th,.master-table td{padding:5px 4px}
   .row-label-col{min-width:70px;position:sticky;right:0;z-index:5;background:#F5F5F3}
-  .master-table td.row-label{font-size:10px;white-space:nowrap;position:sticky;right:0;z-index:1;padding:4px 5px}
+  .master-table td.row-label{font-size:12px;white-space:nowrap;position:sticky;right:0;z-index:1;padding:5px 6px}
   .master-table th.row-label-col{position:sticky;right:0;top:0;z-index:6}
-  .master-table thead th{font-size:10.5px;padding:5px 4px;position:sticky;top:0;z-index:2}
-  .master-table thead th .dnum{font-size:9px}
+  .master-table thead th{font-size:12.5px;padding:6px 5px;position:sticky;top:0;z-index:2}
+  .master-table thead th .dnum{font-size:10.5px}
   .day-cell{min-width:78px}
-  .mini-card{padding:3px 4px;margin-bottom:3px;font-size:10px;border-radius:5px}
+  .mini-card{padding:4px 5px;margin-bottom:4px;font-size:12px;border-radius:5px}
   .mini-card .shift-label,.mini-card .team-role,.tap-hint{display:none}
-  .mini-card .shift-time{font-size:9px;margin-bottom:2px;justify-content:center}
-  .mini-card .worker-pill{font-size:11px;font-weight:700;padding:3px 5px;white-space:nowrap;direction:rtl;text-align:center;border-radius:8px}
-  .add-shift-btn{font-size:9px;padding:3px}
-  .sick-badge{font-size:9px;padding:2px 4px}
+  .mini-card .shift-time{font-size:10.5px;margin-bottom:2px;justify-content:center}
+  .mini-card .worker-pill{font-size:13px;font-weight:700;padding:4px 6px;white-space:nowrap;direction:rtl;text-align:center;border-radius:8px}
+  .add-shift-btn{font-size:11px;padding:4px}
+  .sick-badge{font-size:11px;padding:3px 5px}
   .topbar{gap:5px}
-  .btn{padding:5px 8px;font-size:11px}
+  .btn{padding:6px 9px;font-size:13px}
 }
 .mini-card{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 6px;margin-bottom:4px;font-size:11px}
 .mini-card.clickable{cursor:pointer;transition:.12s}
@@ -1012,10 +1012,10 @@ function renderAbsenceSummary(){
     if(t.sick_photographer_id){ sickEntries.push({name:workerName(t.sick_photographer_id), day:DAYS[t.day_of_week].label, context:MAGAZINES[t.magazine]?.name||t.magazine}); }
     if(t.sick_recorder_id){ sickEntries.push({name:workerName(t.sick_recorder_id), day:DAYS[t.day_of_week].label, context:MAGAZINES[t.magazine]?.name||t.magazine}); }
   });
-  // אילוצים שהוצהרו כ"מחלה" או "יום תמורה" לשבוע הבא - מוצגים אוטומטית גם בלי שיבוץ ידני, כשצופים באותו שבוע
-  const nextWeekStartStr = dateStr(getWeekStart(1));
+  // אילוצים שהוצהרו כ"מחלה" או "יום תמורה" - מוצגים בסידור של אותו שבוע שאליו הם שייכים בפועל
+  const constraintsLoadedWeekStr = dateStr(getWeekStart(constraintsWeekOffset));
   const compEntries = [];
-  if(weekStartStr === nextWeekStartStr){
+  if(weekStartStr === constraintsLoadedWeekStr){
     constraintsData.forEach(c=>{
       if(c.status==='sick'){
         const name = workerName(c.worker_id);
