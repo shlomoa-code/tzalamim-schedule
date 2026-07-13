@@ -286,7 +286,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-12-02';
+const APP_VERSION = '2026-07-12-03';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1822,7 +1822,7 @@ function renderVacations(){
     <div class="field"><label>מתאריך</label><input type="date" id="vac-from"></div>
     <div class="field"><label>עד תאריך</label><input type="date" id="vac-to"></div>
     <div class="field"><label>הערה (לא חובה)</label><input type="text" id="vac-note" placeholder="סיבה..."></div>
-    <button class="btn btn-primary" onclick="submitVacation()">שלח בקשה</button>
+    <button class="btn btn-primary" onclick="submitVacation()">${editMode?'➕ הוסף חופשה מאושרת (ידני)':'שלח בקשה'}</button>
   </div>`;
 
   const pending = vacationRequests.filter(v=>v.status==='pending');
@@ -1874,6 +1874,13 @@ async function submitVacation(){
   const to_date = document.getElementById('vac-to').value || from_date;
   const note = document.getElementById('vac-note').value;
   if(!worker_id || !from_date){ alert('נא לבחור עובד ותאריך'); return; }
+  if(editMode){
+    // מנהל מזין ישירות חופשה שכבר סוכמה (למשל בוואטסאפ) - נכנסת ישר כ"מאושר", בלי מייל ובלי שלב אישור
+    const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'approved', req_type:'vacation'}).select();
+    if(data) vacationRequests.push(data[0]);
+    render();
+    return;
+  }
   const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'pending', req_type:'vacation'}).select();
   if(data) vacationRequests.push(data[0]);
   sendVacationRequestEmail(workerName(worker_id), from_date, to_date, note);
