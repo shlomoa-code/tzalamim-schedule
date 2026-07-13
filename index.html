@@ -173,6 +173,11 @@ h1{font-size:19px;font-weight:600}
 .team-role{color:var(--muted);font-size:10px;margin-bottom:1px;display:block}
 
 .topline-note{width:100%;min-height:60px;border:1px solid var(--line);border-radius:6px;padding:6px;font-size:12px;resize:vertical}
+.mivtzaim-slots{display:flex;flex-direction:column;gap:4px}
+.mivtzaim-slot{display:flex;flex-direction:column;gap:2px}
+.mivtzaim-slot-label{font-size:10px;color:var(--muted);font-weight:600}
+.mivtzaim-slot input{width:100%;border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-size:12px}
+.mivtzaim-slot-view{font-size:12px;padding:2px 0}
 
 .workers-list{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .wgroup h3{font-size:13px;margin-bottom:8px;color:var(--muted)}
@@ -243,6 +248,11 @@ h1{font-size:19px;font-weight:600}
 </style>
 </head>
 <body>
+<datalist id="mivtzaim-names">
+  <option value="אמיר בן אהרון">
+  <option value="תוג'אן מנסור">
+  <option value="גל וינר">
+</datalist>
 <div id="access-gate" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:20px;text-align:center">
   <div style="font-size:20px;font-weight:700">🔒 סידור עבודה — צלמים ומקליטים</div>
   <div style="color:#6B7280;font-size:14px">הזן את המייל הארגוני שלך כדי להיכנס</div>
@@ -286,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-12-03';
+const APP_VERSION = '2026-07-13-02';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1127,7 +1137,7 @@ function buildSections(){
   add('ערבית דרום', d=>regionCellInner('south', d, l=>l==='ערבית', 'ערבית'), true, null, 'ער\' דרום');
   add('ערבית חיפה', d=>regionCellInner('haifa', d, l=>l==='ערבית', 'ערבית'), false, null, 'ער\' חיפה');
   add('טופליין', d=>noteCellInner(toplineNotes, d, 'updateTopline', 'לא פעיל'), true, 'row-topline');
-  add('מבצעים', d=>noteCellInner(mivtzaimNotes, d, 'updateMivtzaim', 'לא הוזן'), false, 'row-mivtzaim');
+  add('מבצעים', d=>mivtzaimCellInner(d), false, 'row-mivtzaim');
   return sections;
 }
 
@@ -1412,6 +1422,30 @@ async function updateMivtzaim(day, id, value){
     const {data} = await sb.from('mivtzaim_notes').insert({week_start:weekStart, day_of_week:day, note:value}).select();
     if(data) mivtzaimNotes.push(data[0]);
   }
+}
+const MIVTZAIM_SLOT_LABELS = ['משמרת 1','משמרת 2','משמרת 3'];
+function mivtzaimCellInner(day){
+  const n = mivtzaimNotes.find(x=>x.day_of_week===day);
+  const id = n ? n.id : '';
+  const parts = (n && n.note ? n.note.split('||') : []);
+  while(parts.length<3) parts.push('');
+  if(editMode){
+    return `<div class="mivtzaim-slots" data-day="${day}">
+      ${MIVTZAIM_SLOT_LABELS.map((lab,i)=>`
+        <div class="mivtzaim-slot">
+          <span class="mivtzaim-slot-label">${lab}</span>
+          <input list="mivtzaim-names" placeholder="בחר או הקלד שם" value="${parts[i]||''}" onchange="onMivtzaimSlotChange(this,${day},'${id}')">
+        </div>`).join('')}
+    </div>`;
+  }
+  const filled = MIVTZAIM_SLOT_LABELS.map((lab,i)=> parts[i] ? `<div class="mivtzaim-slot-view"><b>${lab}:</b> ${parts[i]}</div>` : '').join('');
+  return filled;
+}
+async function onMivtzaimSlotChange(inputEl, day, id){
+  const wrapper = inputEl.closest('.mivtzaim-slots');
+  const values = Array.from(wrapper.querySelectorAll('input')).map(i=>i.value.trim());
+  await updateMivtzaim(day, id||null, values.join('||'));
+  render();
 }
 
 /* ---------- ניהול עובדים ---------- */
