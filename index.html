@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-08';
+const APP_VERSION = '2026-07-13-09';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1845,7 +1845,8 @@ function renderVacations(){
   </div>`;
 
   const pending = vacationRequests.filter(v=>v.status==='pending');
-  if(editMode && pending.length){
+  const canSeePending = editMode || accessRole==='manager';
+  if(canSeePending && pending.length){
     html += `<h3 style="font-size:13px;margin-bottom:8px">בקשות ממתינות לאישור</h3>`;
     pending.forEach(v=>{
       html += `<div class="vac-item">
@@ -1859,14 +1860,14 @@ function renderVacations(){
     });
   }
 
-  html += `<h3 style="font-size:13px;margin:16px 0 8px">${editMode?'כל הבקשות':'חופשות מאושרות'}</h3>`;
+  html += `<h3 style="font-size:13px;margin:16px 0 8px">${canSeePending?'כל הבקשות':'חופשות מאושרות'}</h3>`;
   const rest = [...vacationRequests]
-    .filter(v=> editMode || v.status==='approved')
+    .filter(v=> canSeePending || v.status==='approved')
     .sort((a,b)=>b.created_at.localeCompare(a.created_at));
-  if(!rest.length) html += `<div class="empty-msg">${editMode?'אין בקשות עדיין':'אין עדיין חופשות מאושרות'}</div>`;
+  if(!rest.length) html += `<div class="empty-msg">${canSeePending?'אין בקשות עדיין':'אין עדיין חופשות מאושרות'}</div>`;
   rest.forEach(v=>{
     html += `<div class="vac-item">
-      <div><b>${workerName(v.worker_id)||'—'}</b> · ${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''} ${(editMode && v.note)?'· '+v.note:''}</div>
+      <div><b>${workerName(v.worker_id)||'—'}</b> · ${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''} ${(canSeePending && v.note)?'· '+v.note:''}</div>
       <div style="display:flex;gap:6px;align-items:center">
         ${v.req_type==='sick'?'<span class="vac-status sicktype">🤒 מחלה</span>':''}
         <span class="vac-status ${v.status}">${v.status==='approved'?'מאושר':v.status==='rejected'?'נדחה':'ממתין'}</span>
@@ -2506,7 +2507,7 @@ async function submitTeamAccess(){
   const val = document.getElementById('access-code-input').value.trim().toLowerCase();
   if(!val){ return; }
   let allowed = MANAGER_ACCESS_EMAILS.includes(val);
-  let role = 'full';
+  let role = allowed ? 'manager' : 'full';
   if(!allowed){
     try{
       const {data} = await sb.from('workers').select('id,email,active').ilike('email', val);
