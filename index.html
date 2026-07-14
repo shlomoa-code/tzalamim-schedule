@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-13';
+const APP_VERSION = '2026-07-13-14';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -984,12 +984,18 @@ function openTeamDetails(id){
 function shiftsFor(region, day, filterFn){
   return sortShiftsChrono(shifts.filter(s=>s.region===region && s.day_of_week===day && filterFn(s.label)));
 }
+function timeToMinutes(t){
+  if(!t) return -1;
+  const m = String(t).trim().match(/^(\d{1,2}):(\d{2})/);
+  if(!m) return -1;
+  return parseInt(m[1],10)*60 + parseInt(m[2],10);
+}
 function sortShiftsChrono(list){
   return [...list].sort((a,b)=>{
     const aPinned = a.row_order>=90, bPinned = b.row_order>=90;
     if(aPinned !== bPinned) return aPinned ? 1 : -1;
     if(aPinned && bPinned) return a.row_order - b.row_order;
-    return (a.start_time||'').localeCompare(b.start_time||'');
+    return timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
   });
 }
 function regionCellInner(region, day, filterFn, defaultLabel){
