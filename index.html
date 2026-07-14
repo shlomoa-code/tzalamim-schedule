@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-05';
+const APP_VERSION = '2026-07-13-06';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2564,6 +2564,10 @@ function showUpdateBanner(){
 setInterval(checkForNewVersion, 2*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkForNewVersion(); });
 checkForNewVersion();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
 
 checkTeamAccess();
 </script>
