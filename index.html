@@ -77,8 +77,8 @@ h1{font-size:19px;font-weight:600}
 .mag-section-title-main{font-size:17px;font-weight:700;margin-bottom:14px}
 .mag-section{margin-bottom:26px}
 
-.table-scroll{overflow-x:auto;overflow-y:visible;border:1px solid var(--line);border-radius:10px}
-.table-scroll.capture-mode{overflow:visible!important;width:max-content!important;max-width:none!important;border-radius:0}
+.table-scroll{overflow-x:auto;overflow-y:auto;max-height:72vh;border:1px solid var(--line);border-radius:10px}
+.table-scroll.capture-mode{overflow:visible!important;max-height:none!important;width:max-content!important;max-width:none!important;border-radius:0}
 .master-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;background:#fff}
 .master-table th,.master-table td{border:1px solid var(--line);padding:5px;vertical-align:top}
 .master-table thead th{background:#F5F5F3;text-align:center;font-size:12px;padding:7px 5px;white-space:nowrap;position:sticky;top:0;z-index:2}
@@ -126,7 +126,7 @@ h1{font-size:19px;font-weight:600}
 .my-shift-detail{font-size:12px;color:var(--ink)}
 
 @media(max-width:700px){
-  .table-scroll{overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;border-radius:8px}
+  .table-scroll{overflow-x:auto;overflow-y:auto;max-height:68vh;-webkit-overflow-scrolling:touch;border-radius:8px}
   .master-table{table-layout:auto}
   .master-table th,.master-table td{padding:5px 4px}
   .row-label-col{min-width:70px;position:sticky;right:0;z-index:5;background:#F5F5F3}
@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-07';
+const APP_VERSION = '2026-07-13-08';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
