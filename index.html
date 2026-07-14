@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-06';
+const APP_VERSION = '2026-07-13-07';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1398,22 +1398,7 @@ async function updateTopline(day, id, value){
   }
 }
 
-/* ---------- מבצעים (מי עובד היום — הזנה ידנית, בלי חיבור לאפליקציה הנפרדת) ---------- */
-function renderMivtzaim(){
-  let html = `<div class="sub" style="margin-bottom:12px">מי עובד היום ב"מבצעים" — לצורך מידע בלבד, מוזן ידנית מהאפליקציה הנפרדת. ${editMode?'ניתן לערוך הערה לכל יום.':''}</div><div class="days-grid">`;
-  DAYS.forEach(day=>{
-    const note = mivtzaimNotes.find(n=>n.day_of_week===day.i);
-    html += `<div class="day-col"><div class="day-head">${day.label}<span class="dnum">${dateForDay(day.i).slice(8,10)}/${dateForDay(day.i).slice(5,7)}</span></div>`;
-    if(editMode){
-      html += `<textarea class="topline-note" placeholder="לדוגמה: גל (בוקר), תוג'אן (ערב)" onchange="updateMivtzaim(${day.i},'${note?note.id:''}',this.value)">${note?note.note:''}</textarea>`;
-    } else {
-      html += note && note.note ? `<div class="shift-card">${note.note}</div>` : `<div class="empty-msg">לא הוזן</div>`;
-    }
-    html += `</div>`;
-  });
-  html += `</div>`;
-  return html;
-}
+/* מבצעים - מוצג ישירות בשורת הטבלה הראשית דרך mivtzaimCellInner */
 async function updateMivtzaim(day, id, value){
   if(id){
     await sb.from('mivtzaim_notes').update({note:value}).eq('id',id);
@@ -2185,12 +2170,18 @@ function copyScheduleText(){
     });
   }
 
-  const mivtzaimActive = DAYS.some(d=>mivtzaimNotes.find(n=>n.day_of_week===d.i && n.note));
+  const mivtzaimActive = DAYS.some(d=>{
+    const n = mivtzaimNotes.find(x=>x.day_of_week===d.i);
+    return n && n.note && n.note.split('||').some(p=>p.trim());
+  });
   if(mivtzaimActive){
     out += `\n=== מבצעים ===\n`;
     DAYS.forEach(day=>{
       const n = mivtzaimNotes.find(x=>x.day_of_week===day.i);
-      if(n && n.note) out += `${day.label}: ${n.note}\n`;
+      if(n && n.note){
+        const names = n.note.split('||').map(p=>p.trim()).filter(Boolean);
+        if(names.length) out += `${day.label}: ${names.join(', ')}\n`;
+      }
     });
   }
 
