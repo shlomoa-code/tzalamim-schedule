@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-11';
+const APP_VERSION = '2026-07-13-13';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -982,7 +982,15 @@ function openTeamDetails(id){
 
 /* ---------- טבלת אב מאוחדת ---------- */
 function shiftsFor(region, day, filterFn){
-  return shifts.filter(s=>s.region===region && s.day_of_week===day && filterFn(s.label)).sort((a,b)=>a.row_order-b.row_order);
+  return sortShiftsChrono(shifts.filter(s=>s.region===region && s.day_of_week===day && filterFn(s.label)));
+}
+function sortShiftsChrono(list){
+  return [...list].sort((a,b)=>{
+    const aPinned = a.row_order>=90, bPinned = b.row_order>=90;
+    if(aPinned !== bPinned) return aPinned ? 1 : -1;
+    if(aPinned && bPinned) return a.row_order - b.row_order;
+    return (a.start_time||'').localeCompare(b.start_time||'');
+  });
 }
 function regionCellInner(region, day, filterFn, defaultLabel){
   const list = shiftsFor(region, day, filterFn);
@@ -1205,7 +1213,7 @@ function renderRegion(regionKey){
       html += `</div>`;
       return;
     }
-    const dayShifts = shifts.filter(s=>s.region===regionKey && s.day_of_week===day.i).sort((a,b)=>a.row_order-b.row_order);
+    const dayShifts = sortShiftsChrono(shifts.filter(s=>s.region===regionKey && s.day_of_week===day.i));
     html += `<div class="day-col"><div class="day-head">${day.label}<span class="dnum">${dateForDay(day.i).slice(8,10)}/${dateForDay(day.i).slice(5,7)}</span></div>`;
     dayShifts.forEach(s=>{
       const wname = workerName(s.worker_id);
@@ -1239,7 +1247,7 @@ async function addShift(region, day, defaultLabel){
   if(label===null) return;
   const start = prompt('שעת התחלה:', '09:00') || '';
   const end = prompt('שעת סיום:', '18:00') || '';
-  const maxOrder = Math.max(0, ...shifts.filter(s=>s.region===region && s.day_of_week===day).map(s=>s.row_order+1), 0);
+  const maxOrder = Math.max(0, ...shifts.filter(s=>s.region===region && s.day_of_week===day && s.row_order<90).map(s=>s.row_order+1), 0);
   const {data} = await sb.from('shifts').insert({week_start:weekStart, region, day_of_week:day, label, start_time:start, end_time:end, worker_id:null, row_order:maxOrder}).select();
   if(data) shifts.push(data[0]);
   render();
@@ -1253,6 +1261,7 @@ async function deleteShift(id){
 async function updateShift(id, field, value){
   await sb.from('shifts').update({[field]:value}).eq('id',id);
   const s = shifts.find(x=>x.id===id); if(s) s[field]=value;
+  if(field==='start_time') render();
 }
 async function markSick(id){
   const s = shifts.find(x=>x.id===id);
@@ -2132,7 +2141,7 @@ function copyScheduleText(){
   for(const [key,region] of Object.entries(REGIONS)){
     out += `\n=== ${region.name} ===\n`;
     DAYS.forEach(day=>{
-      const dayShifts = shifts.filter(s=>s.region===key && s.day_of_week===day.i).sort((a,b)=>a.row_order-b.row_order);
+      const dayShifts = sortShiftsChrono(shifts.filter(s=>s.region===key && s.day_of_week===day.i));
       if(!dayShifts.length) return;
       out += `${day.label} (${dateForDay(day.i).slice(8,10)}/${dateForDay(day.i).slice(5,7)}):\n`;
       dayShifts.forEach(s=>{
