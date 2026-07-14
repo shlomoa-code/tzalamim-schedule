@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-09';
+const APP_VERSION = '2026-07-13-10';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2495,6 +2495,12 @@ window.addEventListener('resize', ()=>{
 const MANAGER_ACCESS_EMAILS = ['shlomoa@kan.org.il'];
 async function checkTeamAccess(){
   if(localStorage.getItem('team_access_granted')==='yes'){
+    // תיקון אוטומטי חד-פעמי: אם המייל השמור שייך למנהל אבל התפקיד עוד לא עודכן (התחברות מלפני התכונה הזו) - נעדכן בשקט
+    const savedEmail = (localStorage.getItem('team_access_email')||'').toLowerCase();
+    if(MANAGER_ACCESS_EMAILS.includes(savedEmail) && localStorage.getItem('access_role') !== 'manager'){
+      localStorage.setItem('access_role', 'manager');
+      accessRole = 'manager';
+    }
     document.getElementById('access-gate').style.display = 'none';
     document.getElementById('app-wrap').style.display = '';
     loadWeek();
