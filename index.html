@@ -296,7 +296,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-14';
+const APP_VERSION = '2026-07-13-15';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -579,6 +579,11 @@ function dateStr(d){
   const m = String(d.getMonth()+1).padStart(2,'0');
   const day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
+}
+function shiftDateStr(baseDateStr, days){
+  const dt = new Date(baseDateStr);
+  dt.setDate(dt.getDate() + days);
+  return dateStr(dt);
 }
 function getWeekStart(offset){
   const now = new Date();
