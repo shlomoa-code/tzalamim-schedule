@@ -298,7 +298,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-19';
+const APP_VERSION = '2026-07-13-20';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -541,6 +541,7 @@ const TABS = [
   {id:'duty',label:'תורנות שישי-שבת-חגים',kind:'duty'},
   {id:'overview',label:'מבט שבועי לכל עובד',kind:'overview'},
   {id:'producers',label:'ניהול מפיקים',kind:'producers'},
+  {id:'topline_log',label:'יומן טופליין',kind:'topline_log'},
   {id:'workers',label:'ניהול עובדים',kind:'workers'}
 ];
 
@@ -555,6 +556,7 @@ let freelancers = [];
 let shifts = [];
 let magTeams = [];
 let toplineNotes = [];
+let toplineLog = [];
 let mivtzaimNotes = [];
 let constraintsData = [];
 let vacationRequests = [];
@@ -628,7 +630,7 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, v, f, mv, dr, vw, swc, wp] = await Promise.all([
+  const [w, s, m, t, c, v, f, mv, dr, vw, swc, wp, tl] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
@@ -640,7 +642,8 @@ async function refreshAll(){
     sb.from('duty_roster').select('*').order('duty_date'),
     sb.from('viewers').select('*').order('name'),
     sb.from('constraints').select('*').eq('week_start', weekStart),
-    sb.from('week_publish').select('published').eq('week_start', weekStart)
+    sb.from('week_publish').select('published').eq('week_start', weekStart),
+    sb.from('topline_log').select('*').order('log_date', {ascending:false})
   ]);
   workers = w.data || [];
   shifts = s.data || [];
@@ -653,6 +656,7 @@ async function refreshAll(){
   dutyRoster = dr.data || [];
   viewers = vw.data || [];
   scheduleWeekConstraints = swc.data || [];
+  toplineLog = tl.data || [];
   if(wp.error || !wp.data || !wp.data.length){
     const isFutureWeek = weekStart > dateStr(getWeekStart(0));
     weekPublished = !isFutureWeek; // שבועות עתידיים שעדיין לא פורסמו במפורש - מוסתרים כברירת מחדל. שבועות נוכחיים/עבר - גלויים כרגיל.
@@ -858,7 +862,10 @@ function buildTabs(){
   const el = document.getElementById('tabs');
   const visibleTabs = accessRole==='producer'
     ? TABS.filter(t=> t.kind==='fullschedule')
-    : TABS.filter(t=> (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode);
+    : TABS.filter(t=> {
+        if(t.kind==='topline_log') return accessRole==='manager';
+        return (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode;
+      });
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
 }
 function switchTab(id){ activeTab = id; render(); }
@@ -879,6 +886,7 @@ function render(){
   else if(tab.kind==='duty') el.innerHTML = renderDuty();
   else if(tab.kind==='overview') el.innerHTML = renderOverview();
   else if(tab.kind==='producers') el.innerHTML = renderProducers();
+  else if(tab.kind==='topline_log') el.innerHTML = renderToplineLog();
 
   Array.from(el.querySelectorAll('.table-scroll')).forEach((e,i)=>{ if(prevInnerScrolls[i]!==undefined) e.scrollTop = prevInnerScrolls[i]; });
   window.scrollTo(0, prevScrollY);
@@ -1477,6 +1485,55 @@ function renderTopline(){
   html += `</div>`;
   return html;
 }
+function renderToplineLog(){
+  let html = `<div class="sub" style="margin-bottom:12px">יומן טופליין - רשומה לכל יום שבו הופעל טופליין (מתעדכן אוטומטית מהסידור השבועי, וניתן גם להוסיף/לערוך ידנית).</div>`;
+  html += `<div class="vac-form" style="margin-bottom:16px">
+    <input type="date" id="tl-new-date">
+    <input placeholder="מה עשו" id="tl-new-desc" style="flex:1;min-width:200px">
+    <button class="btn btn-primary" onclick="addToplineLogEntry()">➕ הוסף רשומה</button>
+  </div>`;
+  if(!toplineLog.length){
+    html += `<div class="empty-msg">אין עדיין רשומות ביומן</div>`;
+  } else {
+    toplineLog.forEach(l=>{
+      const dt = new Date(l.log_date);
+      const dayLabel = l.day_label || (DAYS[dt.getDay()] ? DAYS[dt.getDay()].label : '');
+      html += `<div class="vac-item">
+        <div style="flex:1">
+          <b>${dayLabel}</b> · ${l.log_date}
+          <div style="margin-top:4px"><input value="${(l.description||'').replace(/"/g,'&quot;')}" style="width:100%" onchange="updateToplineLogEntry('${l.id}','description',this.value)"></div>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="deleteToplineLogEntry('${l.id}')">מחק</button>
+      </div>`;
+    });
+  }
+  return html;
+}
+async function addToplineLogEntry(){
+  const dateVal = document.getElementById('tl-new-date').value;
+  const desc = document.getElementById('tl-new-desc').value.trim();
+  if(!dateVal || !desc){ alert('נא למלא תאריך ותיאור'); return; }
+  const dt = new Date(dateVal);
+  const dayLabel = (DAYS[dt.getDay()]||{}).label || '';
+  const {data} = await sb.from('topline_log').upsert({log_date:dateVal, day_label:dayLabel, description:desc}, {onConflict:'log_date'}).select();
+  if(data && data.length){
+    const idx = toplineLog.findIndex(l=>l.log_date===dateVal);
+    if(idx!==-1) toplineLog[idx]=data[0]; else toplineLog.push(data[0]);
+    toplineLog.sort((a,b)=>b.log_date.localeCompare(a.log_date));
+  }
+  render();
+}
+async function updateToplineLogEntry(id, field, value){
+  await sb.from('topline_log').update({[field]:value}).eq('id',id);
+  const l = toplineLog.find(x=>x.id===id); if(l) l[field]=value;
+}
+async function deleteToplineLogEntry(id){
+  if(!confirm('למחוק את הרשומה?')) return;
+  await sb.from('topline_log').delete().eq('id',id);
+  toplineLog = toplineLog.filter(l=>l.id!==id);
+  render();
+}
+
 async function updateTopline(day, id, value){
   if(id){
     await sb.from('topline_notes').update({note:value}).eq('id',id);
@@ -1484,6 +1541,17 @@ async function updateTopline(day, id, value){
   } else {
     const {data} = await sb.from('topline_notes').insert({week_start:weekStart, day_of_week:day, note:value}).select();
     if(data) toplineNotes.push(data[0]);
+  }
+  if(value && value.trim()){
+    const logDate = dateForDay(day);
+    const dayLabel = (DAYS.find(d=>d.i===day)||{}).label || '';
+    try{
+      const {data:logData} = await sb.from('topline_log').upsert({log_date:logDate, day_label:dayLabel, description:value.trim()}, {onConflict:'log_date'}).select();
+      if(logData && logData.length){
+        const idx = toplineLog.findIndex(l=>l.log_date===logDate);
+        if(idx!==-1) toplineLog[idx] = logData[0]; else toplineLog.push(logData[0]);
+      }
+    }catch(e){ console.error('topline log sync failed', e); }
   }
 }
 
