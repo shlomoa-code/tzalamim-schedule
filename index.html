@@ -66,6 +66,7 @@ h1{font-size:19px;font-weight:600}
 .del-row{position:absolute;top:5px;left:5px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;opacity:.5;padding:2px}
 .del-row:hover{opacity:1;color:var(--red)}
 .sick-badge{display:flex;align-items:center;justify-content:space-between;background:#F1E6FB;color:#6D28D9;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:600;margin-bottom:5px}
+.prev-shoot-hint{background:#EEF5FC;color:#1A6FBF;border-radius:6px;padding:5px 7px;font-size:11px;margin-top:4px;line-height:1.4}
 .sick-badge button{background:none;border:none;color:#6D28D9;cursor:pointer;font-size:12px;opacity:.7}
 .sick-badge button:hover{opacity:1}
 .freelance-input{width:100%;border:1px dashed var(--line);background:#fff;border-radius:6px;padding:5px 7px;font-size:11px;margin-top:5px}
@@ -296,7 +297,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-15';
+const APP_VERSION = '2026-07-13-16';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -833,9 +834,12 @@ function switchTab(id){ activeTab = id; render(); }
 
 /* ===================== רינדור ראשי ===================== */
 function render(){
+  const el = document.getElementById('content');
+  const prevScrollY = window.scrollY;
+  const prevInnerScrolls = Array.from(el.querySelectorAll('.table-scroll')).map(e=>e.scrollTop);
+
   buildTabs();
   const tab = TABS.find(t=>t.id===activeTab);
-  const el = document.getElementById('content');
   if(tab.kind==='fullschedule') el.innerHTML = renderMasterTable();
   else if(tab.kind==='workers') el.innerHTML = renderWorkers();
   else if(tab.kind==='constraints') el.innerHTML = renderConstraints();
@@ -844,6 +848,9 @@ function render(){
   else if(tab.kind==='duty') el.innerHTML = renderDuty();
   else if(tab.kind==='overview') el.innerHTML = renderOverview();
   else if(tab.kind==='producers') el.innerHTML = renderProducers();
+
+  Array.from(el.querySelectorAll('.table-scroll')).forEach((e,i)=>{ if(prevInnerScrolls[i]!==undefined) e.scrollTop = prevInnerScrolls[i]; });
+  window.scrollTo(0, prevScrollY);
 }
 
 function workerName(id){ const w = workers.find(x=>x.id===id); return w ? w.name : null; }
@@ -945,10 +952,11 @@ function teamCardHtml(t){
       <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('team','${t.id}','recorder')">❓</button>
     </div>
     ${t.recorder_id && !sickR ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','recorder')">🤒 מחלה</button>` : ''}
-    <input placeholder="כתב" value="${t.reporter_name||''}" onchange="updateTeam('${t.id}','reporter_name',this.value)">
+    <input placeholder="כתב" value="${t.reporter_name||''}" onchange="updateTeam('${t.id}','reporter_name',this.value); showPrevShootDayHint('${t.id}')">
     <input placeholder="נושא" value="${t.topic||''}" onchange="updateTeam('${t.id}','topic',this.value)">
     <input placeholder="אזור" value="${t.area||''}" onchange="updateTeam('${t.id}','area',this.value)">
-    <input type="number" min="1" placeholder="יום צילום מספר (1, 2, 3...)" value="${t.shoot_day||''}" onchange="updateTeam('${t.id}','shoot_day',this.value)">
+    <input type="number" min="1" placeholder="יום צילום מספר (1, 2, 3...)" value="${t.shoot_day||''}" onchange="updateTeam('${t.id}','shoot_day',this.value); showPrevShootDayHint('${t.id}')">
+    <div id="prev-shoot-${t.id}" class="prev-shoot-hint-box"></div>
     <div class="shift-time"><input value="${t.start_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','start_time',this.value)">–<input value="${t.end_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','end_time',this.value)"></div>
     <button class="btn btn-sm" style="width:100%;margin-top:5px" onclick="copyTeamToDay('${t.id}')">📋 העתק ליום אחר</button>
   </div>`;
@@ -1370,6 +1378,31 @@ async function deleteTeam(id){
 async function updateTeam(id, field, value){
   await sb.from('magazine_teams').update({[field]:value}).eq('id',id);
   const t = magTeams.find(x=>x.id===id); if(t) t[field]=value;
+}
+async function showPrevShootDayHint(id){
+  const hintEl = document.getElementById('prev-shoot-'+id);
+  if(!hintEl) return;
+  const t = magTeams.find(x=>x.id===id);
+  const day = parseInt(t && t.shoot_day, 10);
+  const reporter = (t && t.reporter_name || '').trim();
+  if(!reporter || !day || day<=1){ hintEl.innerHTML=''; return; }
+  hintEl.innerHTML = '<div class="prev-shoot-hint">בודק מי צילם ביום הקודם...</div>';
+  const {data} = await sb.from('magazine_teams')
+    .select('photographer_id,recorder_id,freelance_photographer_name,freelance_recorder_name')
+    .eq('reporter_name', reporter)
+    .eq('shoot_day', day-1)
+    .order('week_start',{ascending:false})
+    .limit(1);
+  const curHintEl = document.getElementById('prev-shoot-'+id);
+  if(!curHintEl) return;
+  if(!data || !data.length){
+    curHintEl.innerHTML = `<div class="prev-shoot-hint">אין מידע על יום צילום ${day-1} עבור "${reporter}"</div>`;
+    return;
+  }
+  const prev = data[0];
+  const pName = (prev.freelance_photographer_name && prev.freelance_photographer_name!=='?') ? prev.freelance_photographer_name : (workerName(prev.photographer_id)||'—');
+  const rName = (prev.freelance_recorder_name && prev.freelance_recorder_name!=='?') ? prev.freelance_recorder_name : (workerName(prev.recorder_id)||'—');
+  curHintEl.innerHTML = `<div class="prev-shoot-hint">📌 ביום צילום ${day-1}: צלם — ${pName} · מקליט — ${rName}</div>`;
 }
 async function markTeamSick(id, role){
   const t = magTeams.find(x=>x.id===id);
