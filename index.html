@@ -280,6 +280,7 @@ h1{font-size:19px;font-weight:600}
       <button class="btn" id="import-duty-btn" style="display:none" onclick="importDutyToSchedule()">📥 ייבוא מלוח תורנויות</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
       <button class="btn" id="shoot-report-btn" style="display:none" onclick="showShootDayReport()">🎬 דוח ימי צילום</button>
+      <button class="btn" id="publish-toggle-btn" style="display:none" onclick="togglePublish()">🚀 פרסם</button>
       <button class="btn" id="edit-toggle" onclick="toggleEdit()">🔒 ערוך</button>
     </div>
   </div>
@@ -297,7 +298,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-16';
+const APP_VERSION = '2026-07-13-18';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -548,6 +549,7 @@ let editMode = false;
 let activeTab = 'schedule';
 let weekOffset = 0;
 let weekStart = '';
+let weekPublished = true;
 let workers = [];
 let freelancers = [];
 let shifts = [];
@@ -626,7 +628,7 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, v, f, mv, dr, vw, swc] = await Promise.all([
+  const [w, s, m, t, c, v, f, mv, dr, vw, swc, wp] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
@@ -637,7 +639,8 @@ async function refreshAll(){
     sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart),
     sb.from('duty_roster').select('*').order('duty_date'),
     sb.from('viewers').select('*').order('name'),
-    sb.from('constraints').select('*').eq('week_start', weekStart)
+    sb.from('constraints').select('*').eq('week_start', weekStart),
+    sb.from('week_publish').select('published').eq('week_start', weekStart)
   ]);
   workers = w.data || [];
   shifts = s.data || [];
@@ -650,11 +653,18 @@ async function refreshAll(){
   dutyRoster = dr.data || [];
   viewers = vw.data || [];
   scheduleWeekConstraints = swc.data || [];
+  if(wp.error || !wp.data || !wp.data.length){
+    const isFutureWeek = weekStart > dateStr(getWeekStart(0));
+    weekPublished = !isFutureWeek; // שבועות עתידיים שעדיין לא פורסמו במפורש - מוסתרים כברירת מחדל. שבועות נוכחיים/עבר - גלויים כרגיל.
+  } else {
+    weekPublished = !!wp.data[0].published;
+  }
   if(!workers.length) await seedWorkers();
   else await backfillWorkerEmails();
   await backfillFreelancers();
   if(!dutyRoster.length) await seedDutyRoster();
   if(!viewers.length) await seedViewers();
+  updatePublishBtn();
   render();
 }
 async function seedViewers(){
@@ -816,8 +826,29 @@ function toggleEdit(){
   document.getElementById('shoot-report-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   document.getElementById('import-duty-btn').style.display = editMode ? '' : 'none';
+  updatePublishBtn();
   if(!editMode && (activeTab==='workers' || activeTab==='overview' || activeTab==='producers')) activeTab = 'schedule';
   render();
+}
+
+async function togglePublish(){
+  const newVal = !weekPublished;
+  await sb.from('week_publish').upsert({week_start:weekStart, published:newVal}, {onConflict:'week_start'});
+  weekPublished = newVal;
+  updatePublishBtn();
+  render();
+}
+function updatePublishBtn(){
+  const btn = document.getElementById('publish-toggle-btn');
+  if(!btn) return;
+  btn.style.display = editMode ? '' : 'none';
+  if(weekPublished){
+    btn.textContent = '✅ מפורסם (לחץ להסתרה כטיוטה)';
+    btn.className = 'btn';
+  } else {
+    btn.textContent = '🚀 פרסם סידור השבוע';
+    btn.className = 'btn btn-primary';
+  }
 }
 
 function changeWeek(delta){ weekOffset += delta; loadWeek(); }
@@ -1210,10 +1241,15 @@ function renderMobileDays(sections){
 
 function renderMasterTable(){
   const sunday = getWeekStart(weekOffset);
+  const canSeeDraft = editMode || accessRole==='manager';
+  if(!weekPublished && !canSeeDraft){
+    return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}</div>
+    <div class="empty-msg" style="padding:40px 16px;font-size:14px">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div>`;
+  }
   const sections = buildSections();
   const body = renderDesktopTable(sections);
 
-  return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}</div>
+  return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}${(!weekPublished && canSeeDraft)?' · <span style="color:#B45309;font-weight:700">🚧 טיוטה - עדיין לא פורסם לעובדים</span>':''}</div>
   ${renderMyShifts()}
   ${body}
   ${accessRole==='producer' ? '' : renderAbsenceSummary()}`;
