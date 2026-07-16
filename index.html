@@ -298,7 +298,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-22';
+const APP_VERSION = '2026-07-13-23';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1550,12 +1550,12 @@ async function addToplineLogEntry(){
   if(!dateVal || !desc){ alert('נא למלא תאריך ותיאור'); return; }
   const dt = new Date(dateVal);
   const dayLabel = (DAYS[dt.getDay()]||{}).label || '';
-  const {data} = await sb.from('topline_log').upsert({log_date:dateVal, day_label:dayLabel, description:desc}, {onConflict:'log_date'}).select();
+  const {data} = await sb.from('topline_log').insert({log_date:dateVal, day_label:dayLabel, description:desc, source:'manual'}).select();
   if(data && data.length){
-    const idx = toplineLog.findIndex(l=>l.log_date===dateVal);
-    if(idx!==-1) toplineLog[idx]=data[0]; else toplineLog.push(data[0]);
+    toplineLog.push(data[0]);
     toplineLog.sort((a,b)=>b.log_date.localeCompare(a.log_date));
   }
+  document.getElementById('tl-new-desc').value = '';
   render();
 }
 async function updateToplineLogEntry(id, field, value){
@@ -1581,9 +1581,18 @@ async function updateTopline(day, id, value){
     const logDate = dateForDay(day);
     const dayLabel = (DAYS.find(d=>d.i===day)||{}).label || '';
     try{
-      const {data:logData} = await sb.from('topline_log').upsert({log_date:logDate, day_label:dayLabel, description:value.trim()}, {onConflict:'log_date'}).select();
+      // מחפשים רשומה אוטומטית קיימת לאותו יום (לא נוגעים ברשומות שהוזנו ידנית לאותו תאריך - אלה נשארות בנפרד)
+      const existingAuto = toplineLog.find(l=>l.log_date===logDate && l.source==='auto');
+      let logData;
+      if(existingAuto){
+        const {data} = await sb.from('topline_log').update({day_label:dayLabel, description:value.trim()}).eq('id', existingAuto.id).select();
+        logData = data;
+      } else {
+        const {data} = await sb.from('topline_log').insert({log_date:logDate, day_label:dayLabel, description:value.trim(), source:'auto'}).select();
+        logData = data;
+      }
       if(logData && logData.length){
-        const idx = toplineLog.findIndex(l=>l.log_date===logDate);
+        const idx = toplineLog.findIndex(l=>l.id===logData[0].id);
         if(idx!==-1) toplineLog[idx] = logData[0]; else toplineLog.push(logData[0]);
       }
     }catch(e){ console.error('topline log sync failed', e); }
