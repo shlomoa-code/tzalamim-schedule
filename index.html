@@ -298,7 +298,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-18';
+const APP_VERSION = '2026-07-13-19';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -898,7 +898,7 @@ function shiftCardHtml(s){
   const wname = workerName(s.worker_id);
   const displayName = s.freelance_name ? (s.freelance_name==='?' ? '❓' : `${s.freelance_name} (פרילנס)`) : wname;
   const sickName = s.sick_worker_id ? workerName(s.sick_worker_id) : null;
-  const rname = s.freelance_recorder_name ? (s.freelance_recorder_name==='?' ? '❓' : `${s.freelance_recorder_name} (פרילנס)`) : workerName(s.recorder_id);
+  const rname = s.freelance_recorder_name ? (s.freelance_recorder_name==='?' ? '❓' : `${s.freelance_recorder_name}`) : workerName(s.recorder_id);
   const sickRName = s.sick_recorder_id ? workerName(s.sick_recorder_id) : null;
   const showRecorderBlock = editMode || rname; // hide empty recorder slot in view mode
 
@@ -946,7 +946,7 @@ function shiftCardHtml(s){
 }
 function teamCardHtml(t){
   const pname = t.freelance_photographer_name ? (t.freelance_photographer_name==='?' ? '❓' : `${t.freelance_photographer_name} (פרילנס)`) : workerName(t.photographer_id);
-  const rname = t.freelance_recorder_name ? (t.freelance_recorder_name==='?' ? '❓' : `${t.freelance_recorder_name} (פרילנס)`) : workerName(t.recorder_id);
+  const rname = t.freelance_recorder_name ? (t.freelance_recorder_name==='?' ? '❓' : `${t.freelance_recorder_name}`) : workerName(t.recorder_id);
   const sickP = t.sick_photographer_id ? workerName(t.sick_photographer_id) : null;
   const sickR = t.sick_recorder_id ? workerName(t.sick_recorder_id) : null;
 
@@ -1010,7 +1010,7 @@ function openTeamDetails(id){
   const t = magTeams.find(x=>x.id===id);
   if(!t) return;
   const pname = t.freelance_photographer_name ? `${t.freelance_photographer_name} (פרילנס)` : workerName(t.photographer_id);
-  const rname = t.freelance_recorder_name ? `${t.freelance_recorder_name} (פרילנס)` : workerName(t.recorder_id);
+  const rname = t.freelance_recorder_name ? `${t.freelance_recorder_name}` : workerName(t.recorder_id);
   document.getElementById('popup-title').textContent = 'פרטי צוות';
   document.getElementById('popup-opts').innerHTML = `
     ${pname?`<div class="popup-opt">📷 צלם: ${pname}</div>`:''}
@@ -1368,7 +1368,7 @@ function renderMagazines(){
       html += `<div class="day-col"><div class="day-head">${day.label}<span class="dnum">${dateForDay(day.i).slice(8,10)}/${dateForDay(day.i).slice(5,7)}</span></div>`;
       teams.forEach(t=>{
         const pname = t.freelance_photographer_name ? `${t.freelance_photographer_name} (פרילנס)` : workerName(t.photographer_id);
-        const rname = t.freelance_recorder_name ? `${t.freelance_recorder_name} (פרילנס)` : workerName(t.recorder_id);
+        const rname = t.freelance_recorder_name ? `${t.freelance_recorder_name}` : workerName(t.recorder_id);
         const sickP = t.sick_photographer_id ? workerName(t.sick_photographer_id) : null;
         const sickR = t.sick_recorder_id ? workerName(t.sick_recorder_id) : null;
         html += `<div class="team-card">
@@ -2242,7 +2242,7 @@ function copyScheduleText(){
       out += `${day.label}:\n`;
       filled.forEach(t=>{
         const p = t.freelance_photographer_name ? `${t.freelance_photographer_name} (פרילנס)` : (workerName(t.photographer_id)||'—');
-        const r = t.freelance_recorder_name ? `${t.freelance_recorder_name} (פרילנס)` : (workerName(t.recorder_id)||'—');
+        const r = t.freelance_recorder_name ? `${t.freelance_recorder_name}` : (workerName(t.recorder_id)||'—');
         out += `  צלם: ${p} | מקליט: ${r}`;
         if(t.reporter_name) out += ` | כתב: ${t.reporter_name}`;
         if(t.topic) out += ` | נושא: ${t.topic}`;
