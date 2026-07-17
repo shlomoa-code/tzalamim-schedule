@@ -299,7 +299,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-29';
+const APP_VERSION = '2026-07-13-30';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1249,25 +1249,24 @@ function excelTd(content, opts){
 function exportRegionRowsHtml(regionKey, groupLabel, filterFn, bgColor){
   const regionShifts = shifts.filter(s=>s.region===regionKey && filterFn(s.label));
   if(!regionShifts.length) return '';
-  const uniqueLabels = [...new Set(regionShifts.map(s=>s.label))];
-  uniqueLabels.sort((a,b)=>{
-    const timesFor = lbl => regionShifts.filter(s=>s.label===lbl).map(s=>timeToMinutes(s.start_time)).filter(t=>t>=0);
-    const at = timesFor(a).length ? Math.min(...timesFor(a)) : 9999;
-    const bt = timesFor(b).length ? Math.min(...timesFor(b)) : 9999;
-    return at-bt;
-  });
+  // לכל יום בנפרד ממיינים כרונולוגית (כמו בתצוגה הרגילה), ואז מציבים לפי מיקום (משמרת 1, 2, 3...)
+  // כך שאם ימים שונים משתמשים בשמות משמרת שונים לאותו "סלוט", זה עדיין מיושר נכון בטבלה
+  const byDay = {};
+  DAYS.forEach(d=>{ byDay[d.i] = sortShiftsChrono(regionShifts.filter(s=>s.day_of_week===d.i)); });
+  const maxRows = Math.max(0, ...DAYS.map(d=>byDay[d.i].length));
+  if(maxRows===0) return '';
   let html = '';
-  uniqueLabels.forEach((lbl, idx)=>{
+  for(let pos=0; pos<maxRows; pos++){
     html += '<tr>';
-    if(idx===0){
-      html += `<td rowspan="${uniqueLabels.length}" style="border:1px solid #999999;padding:8px;text-align:center;vertical-align:middle;background:#FFFFFF;font-weight:bold;font-family:Arial,sans-serif;font-size:13px">${groupLabel}</td>`;
+    if(pos===0){
+      html += `<td rowspan="${maxRows}" style="border:1px solid #999999;padding:8px;text-align:center;vertical-align:middle;background:#FFFFFF;font-weight:bold;font-family:Arial,sans-serif;font-size:13px">${groupLabel}</td>`;
     }
     DAYS.forEach(d=>{
-      const s = regionShifts.find(x=>x.day_of_week===d.i && x.label===lbl);
+      const s = byDay[d.i][pos];
       html += excelTd(shiftCellHtml(s), {bg:bgColor});
     });
     html += '</tr>';
-  });
+  }
   return html;
 }
 function exportScheduleToExcel(){
