@@ -300,7 +300,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-24';
+const APP_VERSION = '2026-07-13-25';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1218,25 +1218,104 @@ function htmlToPlainText(html){
   const text = tmp.textContent || '';
   return text.split('\n').map(l=>l.trim()).filter(Boolean).join(' | ');
 }
-async function exportScheduleToExcel(){
-  if(typeof XLSX === 'undefined'){ alert('שגיאה: ספריית האקסל לא נטענה, נסה לרענן את הדף'); return; }
-  const wasEdit = editMode;
-  editMode = false; // זמנית - כדי שהתאים יופקו כטקסט תצוגה רגיל, לא כשדות עריכה
-  const sections = buildSections();
-  const wsData = [];
-  const sunday = getWeekStart(weekOffset);
-  wsData.push([`סידור עבודה — שבוע ${fmtWeekLabel(sunday)}`]);
-  wsData.push(['אזור', ...DAYS.map(d=>`${d.label} ${dateForDay(d.i)}`)]);
-  sections.forEach(sec=>{
-    const row = [sec.label];
-    DAYS.forEach(d=>{ row.push(htmlToPlainText(sec.inner(d.i))); });
+function shiftCellText(s){
+  if(!s) return '';
+  let name;
+  if(s.sick_worker_id){
+    name = `🤒 ${workerName(s.sick_worker_id)||''} (מוחלף)`;
+  } else if(s.freelance_name==='?'){
+    name = '❓ טרם שובץ';
+  } else {
+    name = s.freelance_name || workerName(s.worker_id) || '';
+  }
+  let extra = '';
+  if(s.recorder_id || (s.freelance_recorder_name && s.freelance_recorder_name!=='?')){
+    const rn = (s.freelance_recorder_name && s.freelance_recorder_name!=='?') ? s.freelance_recorder_name : (workerName(s.recorder_id)||'');
+    if(rn) extra = ` + ${rn}`;
+  }
+  const timePart = (s.start_time || s.end_time) ? `${s.start_time||''}-${s.end_time||''} ` : '';
+  return `${timePart}${name}${extra}`.trim();
+}
+function exportRegionRows(wsData, regionKey, groupLabel, filterFn){
+  const regionShifts = shifts.filter(s=>s.region===regionKey && filterFn(s.label));
+  if(!regionShifts.length) return;
+  const uniqueLabels = [...new Set(regionShifts.map(s=>s.label))];
+  uniqueLabels.sort((a,b)=>{
+    const timesFor = lbl => regionShifts.filter(s=>s.label===lbl).map(s=>timeToMinutes(s.start_time)).filter(t=>t>=0);
+    const at = timesFor(a).length ? Math.min(...timesFor(a)) : 9999;
+    const bt = timesFor(b).length ? Math.min(...timesFor(b)) : 9999;
+    return at-bt;
+  });
+  uniqueLabels.forEach(lbl=>{
+    const row = [`${groupLabel} - ${lbl}`];
+    DAYS.forEach(d=>{
+      const s = regionShifts.find(x=>x.day_of_week===d.i && x.label===lbl);
+      row.push(s ? shiftCellText(s) : '');
+    });
     wsData.push(row);
   });
-  editMode = wasEdit;
+}
+async function exportScheduleToExcel(){
+  if(typeof XLSX === 'undefined'){ alert('שגיאה: ספריית האקסל לא נטענה, נסה לרענן את הדף'); return; }
+  const sunday = getWeekStart(weekOffset);
+  const wsData = [];
+  wsData.push([`סידור עבודה — שבוע ${fmtWeekLabel(sunday)}`]);
+  wsData.push(['אזור / משמרת', ...DAYS.map(d=>`${d.label} ${dateForDay(d.i)}`)]);
+
+  exportRegionRows(wsData, 'ta', 'ת"א', l=>l!=='כונן');
+  exportRegionRows(wsData, 'ta', 'כוננים ת"א', l=>l==='כונן');
+  exportRegionRows(wsData, 'jerusalem', 'ירושלים', l=>l!=='כונן');
+  exportRegionRows(wsData, 'jerusalem', 'כוננים ירושלים', l=>l==='כונן');
+  if(shifts.some(s=>s.region==='special1')) exportRegionRows(wsData, 'special1', 'אירוע מיוחד 1', l=>true);
+  if(shifts.some(s=>s.region==='special2')) exportRegionRows(wsData, 'special2', 'אירוע מיוחד 2', l=>true);
+  exportRegionRows(wsData, 'south', 'דרום — צלם', l=>l!=='כונן' && l!=='ערבית');
+  exportRegionRows(wsData, 'south', 'כוננות דרום', l=>l==='כונן');
+  exportRegionRows(wsData, 'south', 'ערבית דרום', l=>l==='ערבית');
+  exportRegionRows(wsData, 'haifa', 'חיפה — צלם', l=>l!=='כונן' && l!=='ערבית');
+  exportRegionRows(wsData, 'haifa', 'כוננות חיפה', l=>l==='כונן');
+  exportRegionRows(wsData, 'haifa', 'ערבית חיפה', l=>l==='ערבית');
+
+  // מגזינים - צוות אחד ליום, שורה אחת לכל מגזין
+  const magLabels = {mahadura:'מגזין מהדורה', rikuz:'מגזין ריכוז', friday:'מגזין שישי', saturday:'מגזין שבת'};
+  Object.keys(magLabels).forEach(key=>{
+    if(!magTeams.some(t=>t.magazine===key)) return;
+    const row = [magLabels[key]];
+    DAYS.forEach(d=>{
+      const t = magTeams.find(x=>x.magazine===key && x.day_of_week===d.i);
+      if(!t){ row.push(''); return; }
+      const pName = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? t.freelance_photographer_name : (workerName(t.photographer_id)||'');
+      const rName = (t.freelance_recorder_name && t.freelance_recorder_name!=='?') ? t.freelance_recorder_name : (workerName(t.recorder_id)||'');
+      const parts = [t.reporter_name, pName && `צלם: ${pName}`, rName && `מקליט: ${rName}`, t.topic].filter(Boolean);
+      row.push(parts.join(', '));
+    });
+    wsData.push(row);
+  });
+
+  // טופליין - שורה אחת ליום
+  if(toplineNotes.some(n=>n.note)){
+    const row = ['טופליין'];
+    DAYS.forEach(d=>{
+      const n = toplineNotes.find(x=>x.day_of_week===d.i);
+      row.push(n ? (n.note||'') : '');
+    });
+    wsData.push(row);
+  }
+
+  // מבצעים - עד 3 עובדים ליום, מופרדים בפסיק
+  if(mivtzaimNotes.some(n=>n.note)){
+    const row = ['מבצעים'];
+    DAYS.forEach(d=>{
+      const n = mivtzaimNotes.find(x=>x.day_of_week===d.i);
+      const names = n && n.note ? n.note.split('||').map(s=>s.trim()).filter(Boolean) : [];
+      row.push(names.join(', '));
+    });
+    wsData.push(row);
+  }
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:16}, ...DAYS.map(()=>({wch:30}))];
+  ws['!cols'] = [{wch:20}, ...DAYS.map(()=>({wch:26}))];
   const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{RTL:true}] };
   XLSX.utils.book_append_sheet(wb, ws, 'סידור שבועי');
   XLSX.writeFile(wb, `סידור_שבועי_${weekStart}.xlsx`);
 }
