@@ -299,7 +299,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-28';
+const APP_VERSION = '2026-07-13-29';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1237,14 +1237,14 @@ function shiftCellHtml(s){
   const timePart = (s.start_time || s.end_time) ? `${s.start_time||''}-${s.end_time||''}` : '';
   if(!name && !timePart) return '';
   const nameColor = isFreelance ? 'color:#B71C1C;' : '';
-  return `<div style="font-weight:700;${nameColor}">${name}${extra}</div>${timePart?`<div style="color:#555;font-size:11px;margin-top:2px;font-weight:normal">${timePart}</div>`:''}`;
+  return `<div style="font-weight:700;font-size:13px;${nameColor}">${name}${extra}</div>${timePart?`<div style="color:#555;font-size:12px;margin-top:2px;font-weight:normal">${timePart}</div>`:''}`;
 }
 function excelTd(content, opts){
   opts = opts || {};
   const bg = opts.bg || '#FFFFFF';
   const bold = opts.bold ? 'font-weight:bold;' : '';
   const extraStyle = opts.style || '';
-  return `<td style="border:1px solid #999999;padding:8px 6px;text-align:center;vertical-align:middle;background:${bg};${bold}font-family:Arial,sans-serif;font-size:12px;${extraStyle}">${content||''}</td>`;
+  return `<td style="border:1px solid #999999;padding:4px 6px;text-align:center;vertical-align:middle;background:${bg};${bold}font-family:Arial,sans-serif;font-size:13px;line-height:1.2;${extraStyle}">${content||''}</td>`;
 }
 function exportRegionRowsHtml(regionKey, groupLabel, filterFn, bgColor){
   const regionShifts = shifts.filter(s=>s.region===regionKey && filterFn(s.label));
