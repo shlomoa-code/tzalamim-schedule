@@ -15,6 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --blue:#1A6FBF; --blue-bg:#E6F1FB;
@@ -277,6 +278,7 @@ h1{font-size:19px;font-weight:600}
         <button class="btn btn-sm" onclick="changeWeek(1)">▶</button>
       </div>
       <button class="btn" id="screenshot-btn" style="display:none" onclick="screenshotTable()">📷 צלם טבלה</button>
+      <button class="btn" id="excel-export-btn" style="display:none" onclick="exportScheduleToExcel()">📥 ייצוא לאקסל</button>
       <button class="btn" id="import-duty-btn" style="display:none" onclick="importDutyToSchedule()">📥 ייבוא מלוח תורנויות</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
       <button class="btn" id="shoot-report-btn" style="display:none" onclick="showShootDayReport()">🎬 דוח ימי צילום</button>
@@ -298,7 +300,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-23';
+const APP_VERSION = '2026-07-13-24';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -873,6 +875,8 @@ function switchTab(id){ activeTab = id; render(); }
 /* ===================== רינדור ראשי ===================== */
 function render(){
   const el = document.getElementById('content');
+  const excelBtn = document.getElementById('excel-export-btn');
+  if(excelBtn) excelBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
   const prevScrollY = window.scrollY;
   const prevInnerScrolls = Array.from(el.querySelectorAll('.table-scroll')).map(e=>e.scrollTop);
 
@@ -1207,6 +1211,35 @@ function buildSections(){
   return sections;
 }
 
+function htmlToPlainText(html){
+  const withBreaks = String(html||'').replace(/<\/(div|tr|p)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = withBreaks;
+  const text = tmp.textContent || '';
+  return text.split('\n').map(l=>l.trim()).filter(Boolean).join(' | ');
+}
+async function exportScheduleToExcel(){
+  if(typeof XLSX === 'undefined'){ alert('שגיאה: ספריית האקסל לא נטענה, נסה לרענן את הדף'); return; }
+  const wasEdit = editMode;
+  editMode = false; // זמנית - כדי שהתאים יופקו כטקסט תצוגה רגיל, לא כשדות עריכה
+  const sections = buildSections();
+  const wsData = [];
+  const sunday = getWeekStart(weekOffset);
+  wsData.push([`סידור עבודה — שבוע ${fmtWeekLabel(sunday)}`]);
+  wsData.push(['אזור', ...DAYS.map(d=>`${d.label} ${dateForDay(d.i)}`)]);
+  sections.forEach(sec=>{
+    const row = [sec.label];
+    DAYS.forEach(d=>{ row.push(htmlToPlainText(sec.inner(d.i))); });
+    wsData.push(row);
+  });
+  editMode = wasEdit;
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:16}, ...DAYS.map(()=>({wch:30}))];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'סידור שבועי');
+  XLSX.writeFile(wb, `סידור_שבועי_${weekStart}.xlsx`);
+}
 function renderDesktopTable(sections){
   const mobile = isMobileView();
   const headerCells = DAYS.map(d=>{
