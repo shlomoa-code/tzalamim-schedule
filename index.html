@@ -300,7 +300,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-25';
+const APP_VERSION = '2026-07-13-26';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1313,11 +1313,35 @@ async function exportScheduleToExcel(){
   }
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:20}, ...DAYS.map(()=>({wch:26}))];
+  ws['!cols'] = [{wch:22}, ...DAYS.map(()=>({wch:28}))];
+
+  // עיצוב: מסגרות לכל תא, יישור למרכז וגלישת טקסט, כותרות מודגשות
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const thinBorder = {style:'thin', color:{rgb:'CCCCCC'}};
+  for(let R = range.s.r; R <= range.e.r; R++){
+    for(let C = range.s.c; C <= range.e.c; C++){
+      const addr = XLSX.utils.encode_cell({r:R, c:C});
+      if(!ws[addr]) ws[addr] = {v:''};
+      const isHeaderRow = R <= 1;
+      ws[addr].s = {
+        alignment: {horizontal:'center', vertical:'center', wrapText:true},
+        border: {top:thinBorder, bottom:thinBorder, left:thinBorder, right:thinBorder},
+        font: isHeaderRow ? {bold:true} : {},
+        fill: isHeaderRow ? {fgColor:{rgb:'EEF5FC'}} : undefined
+      };
+    }
+  }
+  // גובה שורה גדול יותר לשורות עם הרבה טקסט
+  ws['!rows'] = wsData.map(row=>{
+    const maxLen = Math.max(0, ...row.map(c=>String(c||'').length));
+    return {hpx: maxLen > 25 ? 45 : 22};
+  });
+  ws['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:DAYS.length}}];
+
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{RTL:true}] };
   XLSX.utils.book_append_sheet(wb, ws, 'סידור שבועי');
-  XLSX.writeFile(wb, `סידור_שבועי_${weekStart}.xlsx`);
+  XLSX.writeFile(wb, `סידור_שבועי_${weekStart}.xlsx`, {cellStyles:true});
 }
 function renderDesktopTable(sections){
   const mobile = isMobileView();
