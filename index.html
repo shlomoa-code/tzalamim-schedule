@@ -15,7 +15,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --blue:#1A6FBF; --blue-bg:#E6F1FB;
@@ -300,7 +299,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-26';
+const APP_VERSION = '2026-07-13-28';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1218,27 +1217,38 @@ function htmlToPlainText(html){
   const text = tmp.textContent || '';
   return text.split('\n').map(l=>l.trim()).filter(Boolean).join(' | ');
 }
-function shiftCellText(s){
+function shiftCellHtml(s){
   if(!s) return '';
-  let name;
+  let name, isFreelance=false;
   if(s.sick_worker_id){
     name = `🤒 ${workerName(s.sick_worker_id)||''} (מוחלף)`;
   } else if(s.freelance_name==='?'){
     name = '❓ טרם שובץ';
+  } else if(s.freelance_name){
+    name = s.freelance_name; isFreelance = true;
   } else {
-    name = s.freelance_name || workerName(s.worker_id) || '';
+    name = workerName(s.worker_id) || '';
   }
   let extra = '';
   if(s.recorder_id || (s.freelance_recorder_name && s.freelance_recorder_name!=='?')){
     const rn = (s.freelance_recorder_name && s.freelance_recorder_name!=='?') ? s.freelance_recorder_name : (workerName(s.recorder_id)||'');
     if(rn) extra = ` + ${rn}`;
   }
-  const timePart = (s.start_time || s.end_time) ? `${s.start_time||''}-${s.end_time||''} ` : '';
-  return `${timePart}${name}${extra}`.trim();
+  const timePart = (s.start_time || s.end_time) ? `${s.start_time||''}-${s.end_time||''}` : '';
+  if(!name && !timePart) return '';
+  const nameColor = isFreelance ? 'color:#B71C1C;' : '';
+  return `<div style="font-weight:700;${nameColor}">${name}${extra}</div>${timePart?`<div style="color:#555;font-size:11px;margin-top:2px;font-weight:normal">${timePart}</div>`:''}`;
 }
-function exportRegionRows(wsData, regionKey, groupLabel, filterFn){
+function excelTd(content, opts){
+  opts = opts || {};
+  const bg = opts.bg || '#FFFFFF';
+  const bold = opts.bold ? 'font-weight:bold;' : '';
+  const extraStyle = opts.style || '';
+  return `<td style="border:1px solid #999999;padding:8px 6px;text-align:center;vertical-align:middle;background:${bg};${bold}font-family:Arial,sans-serif;font-size:12px;${extraStyle}">${content||''}</td>`;
+}
+function exportRegionRowsHtml(regionKey, groupLabel, filterFn, bgColor){
   const regionShifts = shifts.filter(s=>s.region===regionKey && filterFn(s.label));
-  if(!regionShifts.length) return;
+  if(!regionShifts.length) return '';
   const uniqueLabels = [...new Set(regionShifts.map(s=>s.label))];
   uniqueLabels.sort((a,b)=>{
     const timesFor = lbl => regionShifts.filter(s=>s.label===lbl).map(s=>timeToMinutes(s.start_time)).filter(t=>t>=0);
@@ -1246,102 +1256,100 @@ function exportRegionRows(wsData, regionKey, groupLabel, filterFn){
     const bt = timesFor(b).length ? Math.min(...timesFor(b)) : 9999;
     return at-bt;
   });
-  uniqueLabels.forEach(lbl=>{
-    const row = [`${groupLabel} - ${lbl}`];
+  let html = '';
+  uniqueLabels.forEach((lbl, idx)=>{
+    html += '<tr>';
+    if(idx===0){
+      html += `<td rowspan="${uniqueLabels.length}" style="border:1px solid #999999;padding:8px;text-align:center;vertical-align:middle;background:#FFFFFF;font-weight:bold;font-family:Arial,sans-serif;font-size:13px">${groupLabel}</td>`;
+    }
     DAYS.forEach(d=>{
       const s = regionShifts.find(x=>x.day_of_week===d.i && x.label===lbl);
-      row.push(s ? shiftCellText(s) : '');
+      html += excelTd(shiftCellHtml(s), {bg:bgColor});
     });
-    wsData.push(row);
+    html += '</tr>';
   });
+  return html;
 }
-async function exportScheduleToExcel(){
-  if(typeof XLSX === 'undefined'){ alert('שגיאה: ספריית האקסל לא נטענה, נסה לרענן את הדף'); return; }
+function exportScheduleToExcel(){
   const sunday = getWeekStart(weekOffset);
-  const wsData = [];
-  wsData.push([`סידור עבודה — שבוע ${fmtWeekLabel(sunday)}`]);
-  wsData.push(['אזור / משמרת', ...DAYS.map(d=>`${d.label} ${dateForDay(d.i)}`)]);
+  const headerBg = '#F5A83C';
+  const COLORS = {
+    ta: '#FBE0E3', jerusalem: '#E2F0FB', special: '#F0E6FB',
+    south: '#E6F7EA', haifa: '#FEF6DC', mag: '#F1F1F1', topline: '#FDEBD3', mivtzaim: '#E0F5F2'
+  };
+  let body = '';
 
-  exportRegionRows(wsData, 'ta', 'ת"א', l=>l!=='כונן');
-  exportRegionRows(wsData, 'ta', 'כוננים ת"א', l=>l==='כונן');
-  exportRegionRows(wsData, 'jerusalem', 'ירושלים', l=>l!=='כונן');
-  exportRegionRows(wsData, 'jerusalem', 'כוננים ירושלים', l=>l==='כונן');
-  if(shifts.some(s=>s.region==='special1')) exportRegionRows(wsData, 'special1', 'אירוע מיוחד 1', l=>true);
-  if(shifts.some(s=>s.region==='special2')) exportRegionRows(wsData, 'special2', 'אירוע מיוחד 2', l=>true);
-  exportRegionRows(wsData, 'south', 'דרום — צלם', l=>l!=='כונן' && l!=='ערבית');
-  exportRegionRows(wsData, 'south', 'כוננות דרום', l=>l==='כונן');
-  exportRegionRows(wsData, 'south', 'ערבית דרום', l=>l==='ערבית');
-  exportRegionRows(wsData, 'haifa', 'חיפה — צלם', l=>l!=='כונן' && l!=='ערבית');
-  exportRegionRows(wsData, 'haifa', 'כוננות חיפה', l=>l==='כונן');
-  exportRegionRows(wsData, 'haifa', 'ערבית חיפה', l=>l==='ערבית');
+  body += exportRegionRowsHtml('ta', 'ת"א', l=>l!=='כונן', COLORS.ta);
+  body += exportRegionRowsHtml('ta', 'כוננים ת"א', l=>l==='כונן', COLORS.ta);
+  body += exportRegionRowsHtml('jerusalem', 'ירושלים', l=>l!=='כונן', COLORS.jerusalem);
+  body += exportRegionRowsHtml('jerusalem', 'כוננים ירושלים', l=>l==='כונן', COLORS.jerusalem);
+  if(shifts.some(s=>s.region==='special1')) body += exportRegionRowsHtml('special1', 'אירוע מיוחד 1', l=>true, COLORS.special);
+  if(shifts.some(s=>s.region==='special2')) body += exportRegionRowsHtml('special2', 'אירוע מיוחד 2', l=>true, COLORS.special);
+  body += exportRegionRowsHtml('south', 'דרום — צלם', l=>l!=='כונן' && l!=='ערבית', COLORS.south);
+  body += exportRegionRowsHtml('south', 'כוננות דרום', l=>l==='כונן', COLORS.south);
+  body += exportRegionRowsHtml('south', 'ערבית דרום', l=>l==='ערבית', COLORS.south);
+  body += exportRegionRowsHtml('haifa', 'חיפה — צלם', l=>l!=='כונן' && l!=='ערבית', COLORS.haifa);
+  body += exportRegionRowsHtml('haifa', 'כוננות חיפה', l=>l==='כונן', COLORS.haifa);
+  body += exportRegionRowsHtml('haifa', 'ערבית חיפה', l=>l==='ערבית', COLORS.haifa);
 
-  // מגזינים - צוות אחד ליום, שורה אחת לכל מגזין
+  // מגזינים - כל פרט בשורה נפרדת בתוך התא, התא גדל כמה שצריך
   const magLabels = {mahadura:'מגזין מהדורה', rikuz:'מגזין ריכוז', friday:'מגזין שישי', saturday:'מגזין שבת'};
   Object.keys(magLabels).forEach(key=>{
     if(!magTeams.some(t=>t.magazine===key)) return;
-    const row = [magLabels[key]];
+    body += '<tr>' + excelTd(magLabels[key], {bold:true, bg:'#FFFFFF'});
     DAYS.forEach(d=>{
       const t = magTeams.find(x=>x.magazine===key && x.day_of_week===d.i);
-      if(!t){ row.push(''); return; }
+      if(!t){ body += excelTd('', {bg:COLORS.mag}); return; }
       const pName = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? t.freelance_photographer_name : (workerName(t.photographer_id)||'');
       const rName = (t.freelance_recorder_name && t.freelance_recorder_name!=='?') ? t.freelance_recorder_name : (workerName(t.recorder_id)||'');
       const parts = [t.reporter_name, pName && `צלם: ${pName}`, rName && `מקליט: ${rName}`, t.topic].filter(Boolean);
-      row.push(parts.join(', '));
+      body += excelTd(parts.map(p=>`<div>${p}</div>`).join(''), {bg:COLORS.mag});
     });
-    wsData.push(row);
+    body += '</tr>';
   });
 
-  // טופליין - שורה אחת ליום
+  // טופליין
   if(toplineNotes.some(n=>n.note)){
-    const row = ['טופליין'];
+    body += '<tr>' + excelTd('טופליין', {bold:true, bg:'#FFFFFF'});
     DAYS.forEach(d=>{
       const n = toplineNotes.find(x=>x.day_of_week===d.i);
-      row.push(n ? (n.note||'') : '');
+      body += excelTd(n && n.note ? n.note : '', {bg:COLORS.topline});
     });
-    wsData.push(row);
+    body += '</tr>';
   }
 
-  // מבצעים - עד 3 עובדים ליום, מופרדים בפסיק
+  // מבצעים - כל שם בשורה נפרדת בתוך התא
   if(mivtzaimNotes.some(n=>n.note)){
-    const row = ['מבצעים'];
+    body += '<tr>' + excelTd('מבצעים', {bold:true, bg:'#FFFFFF'});
     DAYS.forEach(d=>{
       const n = mivtzaimNotes.find(x=>x.day_of_week===d.i);
       const names = n && n.note ? n.note.split('||').map(s=>s.trim()).filter(Boolean) : [];
-      row.push(names.join(', '));
+      body += excelTd(names.map(nm=>`<div>${nm}</div>`).join(''), {bg:COLORS.mivtzaim});
     });
-    wsData.push(row);
+    body += '</tr>';
   }
 
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:22}, ...DAYS.map(()=>({wch:28}))];
+  const headerRow = '<tr>' + excelTd('תאריך', {bold:true, bg:headerBg}) +
+    DAYS.map(d=>excelTd(`<div>${d.label}</div><div style="font-weight:normal;font-size:11px">${dateForDay(d.i)}</div>`, {bold:true, bg:headerBg})).join('') + '</tr>';
+  const titleRow = `<tr><td colspan="${DAYS.length+1}" style="text-align:center;font-weight:bold;font-size:16px;padding:10px;background:${headerBg};border:1px solid #999999;font-family:Arial,sans-serif">סידור עבודה — שבוע ${fmtWeekLabel(sunday)}</td></tr>`;
 
-  // עיצוב: מסגרות לכל תא, יישור למרכז וגלישת טקסט, כותרות מודגשות
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const thinBorder = {style:'thin', color:{rgb:'CCCCCC'}};
-  for(let R = range.s.r; R <= range.e.r; R++){
-    for(let C = range.s.c; C <= range.e.c; C++){
-      const addr = XLSX.utils.encode_cell({r:R, c:C});
-      if(!ws[addr]) ws[addr] = {v:''};
-      const isHeaderRow = R <= 1;
-      ws[addr].s = {
-        alignment: {horizontal:'center', vertical:'center', wrapText:true},
-        border: {top:thinBorder, bottom:thinBorder, left:thinBorder, right:thinBorder},
-        font: isHeaderRow ? {bold:true} : {},
-        fill: isHeaderRow ? {fgColor:{rgb:'EEF5FC'}} : undefined
-      };
-    }
-  }
-  // גובה שורה גדול יותר לשורות עם הרבה טקסט
-  ws['!rows'] = wsData.map(row=>{
-    const maxLen = Math.max(0, ...row.map(c=>String(c||'').length));
-    return {hpx: maxLen > 25 ? 45 : 22};
-  });
-  ws['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:DAYS.length}}];
+  const html = `<html dir="rtl"><head><meta charset="UTF-8"></head><body>
+    <table style="border-collapse:collapse;width:100%">
+      ${titleRow}
+      ${headerRow}
+      ${body}
+    </table>
+  </body></html>`;
 
-  const wb = XLSX.utils.book_new();
-  wb.Workbook = { Views: [{RTL:true}] };
-  XLSX.utils.book_append_sheet(wb, ws, 'סידור שבועי');
-  XLSX.writeFile(wb, `סידור_שבועי_${weekStart}.xlsx`, {cellStyles:true});
+  const blob = new Blob(['\ufeff' + html], {type:'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `סידור_שבועי_${weekStart}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 function renderDesktopTable(sections){
   const mobile = isMobileView();
