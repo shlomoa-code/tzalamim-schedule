@@ -299,7 +299,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-30';
+const APP_VERSION = '2026-07-13-33';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -920,8 +920,9 @@ function shiftCardHtml(s){
     if(!combined && !sickName && !sickRName) return ''; // תא ריק - לא מציגים כלום
     const isFreelance = !!(s.freelance_name || s.freelance_recorder_name);
     const {base: labelBase, note: labelNote} = splitLabelNote(s.label);
+    const isSpecialLabel = labelBase==='כונן' || labelBase==='ערבית';
     return `<div class="mini-card">
-      <div class="shift-label">${labelBase}</div><div class="shift-time">${s.start_time}–${s.end_time}</div>
+      ${isSpecialLabel?`<div class="shift-label">${labelBase}</div>`:''}<div class="shift-time">${s.start_time}–${s.end_time}</div>
       ${labelNote?`<div class="shift-note">${labelNote}</div>`:''}
       ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}</div>`:''}
       ${sickRName?`<div class="sick-badge">🤒 מחלה: ${sickRName}</div>`:''}
@@ -929,9 +930,10 @@ function shiftCardHtml(s){
     </div>`;
   }
 
+  const editIsSpecial = s.label==='כונן' || s.label==='ערבית';
   return `<div class="mini-card">
     <button class="del-row" onclick="deleteShift('${s.id}')">✕</button>
-    <input class="shift-label" value="${s.label}" onchange="updateShift('${s.id}','label',this.value)">
+    ${editIsSpecial?`<input class="shift-label" value="${s.label}" onchange="updateShift('${s.id}','label',this.value)">`:''}
     <div class="shift-time">
       <input value="${s.start_time}" onchange="updateShift('${s.id}','start_time',this.value)">–
       <input value="${s.end_time}" onchange="updateShift('${s.id}','end_time',this.value)">
@@ -1252,7 +1254,11 @@ function exportRegionRowsHtml(regionKey, groupLabel, filterFn, bgColor){
   // לכל יום בנפרד ממיינים כרונולוגית (כמו בתצוגה הרגילה), ואז מציבים לפי מיקום (משמרת 1, 2, 3...)
   // כך שאם ימים שונים משתמשים בשמות משמרת שונים לאותו "סלוט", זה עדיין מיושר נכון בטבלה
   const byDay = {};
-  DAYS.forEach(d=>{ byDay[d.i] = sortShiftsChrono(regionShifts.filter(s=>s.day_of_week===d.i)); });
+  DAYS.forEach(d=>{
+    const dayShifts = sortShiftsChrono(regionShifts.filter(s=>s.day_of_week===d.i))
+      .filter(s => s.worker_id || (s.freelance_name && s.freelance_name!=='') || s.start_time || s.end_time); // דלג על משמרות ריקות לגמרי (בלי עובד ובלי שעה)
+    byDay[d.i] = dayShifts;
+  });
   const maxRows = Math.max(0, ...DAYS.map(d=>byDay[d.i].length));
   if(maxRows===0) return '';
   let html = '';
@@ -1294,17 +1300,27 @@ function exportScheduleToExcel(){
   // מגזינים - כל פרט בשורה נפרדת בתוך התא, התא גדל כמה שצריך
   const magLabels = {mahadura:'מגזין מהדורה', rikuz:'מגזין ריכוז', friday:'מגזין שישי', saturday:'מגזין שבת'};
   Object.keys(magLabels).forEach(key=>{
-    if(!magTeams.some(t=>t.magazine===key)) return;
-    body += '<tr>' + excelTd(magLabels[key], {bold:true, bg:'#FFFFFF'});
-    DAYS.forEach(d=>{
-      const t = magTeams.find(x=>x.magazine===key && x.day_of_week===d.i);
-      if(!t){ body += excelTd('', {bg:COLORS.mag}); return; }
-      const pName = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? t.freelance_photographer_name : (workerName(t.photographer_id)||'');
-      const rName = (t.freelance_recorder_name && t.freelance_recorder_name!=='?') ? t.freelance_recorder_name : (workerName(t.recorder_id)||'');
-      const parts = [t.reporter_name, pName && `צלם: ${pName}`, rName && `מקליט: ${rName}`, t.topic].filter(Boolean);
-      body += excelTd(parts.map(p=>`<div>${p}</div>`).join(''), {bg:COLORS.mag});
-    });
-    body += '</tr>';
+    const teams = magTeams.filter(t=>t.magazine===key);
+    if(!teams.length) return;
+    const byDay = {};
+    DAYS.forEach(d=>{ byDay[d.i] = teams.filter(t=>t.day_of_week===d.i).sort((a,b)=>a.row_order-b.row_order); });
+    const maxRows = Math.max(0, ...DAYS.map(d=>byDay[d.i].length));
+    for(let pos=0; pos<maxRows; pos++){
+      body += '<tr>';
+      if(pos===0){
+        body += `<td rowspan="${maxRows}" style="border:1px solid #999999;padding:8px;text-align:center;vertical-align:middle;background:#FFFFFF;font-weight:bold;font-family:Arial,sans-serif;font-size:13px">${magLabels[key]}</td>`;
+      }
+      DAYS.forEach(d=>{
+        const t = byDay[d.i][pos];
+        if(!t){ body += excelTd('', {bg:COLORS.mag}); return; }
+        const pName = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? t.freelance_photographer_name : (workerName(t.photographer_id)||'');
+        const rName = (t.freelance_recorder_name && t.freelance_recorder_name!=='?') ? t.freelance_recorder_name : (workerName(t.recorder_id)||'');
+        const timePart = (t.start_time || t.end_time) ? `${t.start_time||''}-${t.end_time||''}` : '';
+        const parts = [pName, rName, timePart].filter(Boolean);
+        body += excelTd(parts.map(p=>`<div>${p}</div>`).join(''), {bg:COLORS.mag});
+      });
+      body += '</tr>';
+    }
   });
 
   // טופליין
@@ -1449,8 +1465,13 @@ function renderRegion(regionKey){
 }
 
 async function addShift(region, day, defaultLabel){
-  const label = prompt('שם המשמרת:', defaultLabel || 'משמרת חדשה');
-  if(label===null) return;
+  let label;
+  if(defaultLabel){
+    label = prompt('שם המשמרת:', defaultLabel);
+    if(label===null) return;
+  } else {
+    label = ''; // משמרת רגילה - בלי שם, רק שעות + שם עובד
+  }
   const start = prompt('שעת התחלה:', '09:00') || '';
   const end = prompt('שעת סיום:', '18:00') || '';
   const maxOrder = Math.max(0, ...shifts.filter(s=>s.region===region && s.day_of_week===day && s.row_order<90).map(s=>s.row_order+1), 0);
