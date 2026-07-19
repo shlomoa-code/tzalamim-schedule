@@ -299,7 +299,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-33';
+const APP_VERSION = '2026-07-13-34';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2262,6 +2262,12 @@ async function submitVacation(){
   const note = document.getElementById('vac-note').value;
   if(!worker_id || !from_date){ alert('נא לבחור עובד ותאריך'); return; }
   if(editMode){
+    // בדיקת חפיפה עם חופשה קיימת לאותו עובד, לפני שמירה
+    const overlap = vacationRequests.find(v=>v.worker_id===worker_id && v.status==='approved' && v.from_date<=to_date && from_date<=v.to_date);
+    if(overlap){
+      const ok = confirm(`שים לב: ל${workerName(worker_id)} כבר יש חופשה מאושרת בין ${overlap.from_date} ל-${overlap.to_date} שחופפת לתאריכים האלה.\nלהמשיך ולהוסיף בכל זאת (עלול ליצור כפילות)?`);
+      if(!ok) return;
+    }
     // מנהל מזין ישירות חופשה שכבר סוכמה (למשל בוואטסאפ) - נכנסת ישר כ"מאושר", בלי מייל ובלי שלב אישור
     const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'approved', req_type:'vacation'}).select();
     if(data) vacationRequests.push(data[0]);
