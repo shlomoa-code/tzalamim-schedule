@@ -299,7 +299,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-34';
+const APP_VERSION = '2026-07-13-35';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -543,6 +543,7 @@ const TABS = [
   {id:'overview',label:'מבט שבועי לכל עובד',kind:'overview'},
   {id:'producers',label:'ניהול מפיקים',kind:'producers'},
   {id:'topline_log',label:'יומן טופליין',kind:'topline_log'},
+  {id:'freelance_log',label:'ימי פרילנסרים',kind:'freelance_log'},
   {id:'workers',label:'ניהול עובדים',kind:'workers'}
 ];
 
@@ -864,7 +865,7 @@ function buildTabs(){
   const visibleTabs = accessRole==='producer'
     ? TABS.filter(t=> t.kind==='fullschedule')
     : TABS.filter(t=> {
-        if(t.kind==='topline_log') return accessRole==='manager';
+        if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager';
         return (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode;
       });
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
@@ -890,6 +891,7 @@ function render(){
   else if(tab.kind==='overview') el.innerHTML = renderOverview();
   else if(tab.kind==='producers') el.innerHTML = renderProducers();
   else if(tab.kind==='topline_log') el.innerHTML = renderToplineLog();
+  else if(tab.kind==='freelance_log') el.innerHTML = renderFreelanceLog();
 
   Array.from(el.querySelectorAll('.table-scroll')).forEach((e,i)=>{ if(prevInnerScrolls[i]!==undefined) e.scrollTop = prevInnerScrolls[i]; });
   window.scrollTo(0, prevScrollY);
@@ -1650,6 +1652,67 @@ function renderTopline(){
   return html;
 }
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+let freelanceLogData = null;
+async function loadFreelanceLog(){
+  const [sRes, mRes] = await Promise.all([
+    sb.from('shifts').select('week_start,day_of_week,freelance_name,freelance_recorder_name'),
+    sb.from('magazine_teams').select('week_start,day_of_week,freelance_photographer_name,freelance_recorder_name,magazine')
+  ]);
+  const entries = []; // {date, name}
+  const addDate = (weekStart, dayIdx) => {
+    const d = new Date(weekStart); d.setDate(d.getDate()+dayIdx);
+    return dateStr(d);
+  };
+  (sRes.data||[]).forEach(s=>{
+    const d = addDate(s.week_start, s.day_of_week);
+    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:s.freelance_name});
+    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:s.freelance_recorder_name});
+  });
+  (mRes.data||[]).forEach(t=>{
+    const d = addDate(t.week_start, t.day_of_week);
+    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:t.freelance_photographer_name});
+    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:t.freelance_recorder_name});
+  });
+  // קיבוץ: חודש -> שם פרילנס -> סט תאריכים ייחודי
+  const byMonth = {};
+  entries.forEach(({date,name})=>{
+    const monthKey = date.slice(0,7); // YYYY-MM
+    byMonth[monthKey] = byMonth[monthKey] || {};
+    byMonth[monthKey][name] = byMonth[monthKey][name] || new Set();
+    byMonth[monthKey][name].add(date);
+  });
+  freelanceLogData = byMonth;
+  render();
+}
+function renderFreelanceLog(){
+  if(freelanceLogData === null){
+    loadFreelanceLog();
+    return `<div class="empty-msg">טוען נתוני פרילנסרים מכל השבועות...</div>`;
+  }
+  const months = Object.keys(freelanceLogData).sort((a,b)=>b.localeCompare(a));
+  if(!months.length) return `<div class="empty-msg">לא נמצאו ימי פרילנס</div>`;
+  let html = `<div class="sub" style="margin-bottom:12px">ריכוז כל הימים שפרילנסרים עבדו (צילום או הקלטה), לפי חודש. נאסף מכל השבועות בסידור.</div>`;
+  html += `<button class="btn" style="margin-bottom:16px" onclick="freelanceLogData=null; render()">🔄 רענן נתונים</button>`;
+  months.forEach(monthKey=>{
+    const [y,m] = monthKey.split('-');
+    const names = Object.keys(freelanceLogData[monthKey]).sort((a,b)=>a.localeCompare(b,'he'));
+    const totalDays = names.reduce((sum,n)=>sum+freelanceLogData[monthKey][n].size, 0);
+    html += `<div style="margin:18px 0 8px;padding-bottom:6px;border-bottom:2px solid var(--line);display:flex;justify-content:space-between;align-items:baseline">
+      <h3 style="font-size:14px;margin:0">${HEB_MONTHS[parseInt(m,10)-1]} ${y}</h3>
+      <span class="sub" style="font-size:12px">${totalDays} ימי פרילנס סה"כ</span>
+    </div>`;
+    names.forEach(name=>{
+      const dates = [...freelanceLogData[monthKey][name]].sort();
+      const shortDates = dates.map(d=>d.slice(8,10)+'/'+d.slice(5,7)).join(', ');
+      html += `<div class="vac-item">
+        <div><b>${name}</b> · ${dates.length} ימים</div>
+        <div class="sub" style="font-size:12px">${shortDates}</div>
+      </div>`;
+    });
+  });
+  return html;
+}
+
 function renderToplineLog(){
   let html = `<div class="sub" style="margin-bottom:12px">יומן טופליין - רשומה לכל יום שבו הופעל טופליין (מתעדכן אוטומטית מהסידור השבועי, וניתן גם להוסיף/לערוך ידנית).</div>`;
   html += `<div class="vac-form" style="margin-bottom:16px">
