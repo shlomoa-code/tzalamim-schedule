@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-36';
+const APP_VERSION = '2026-07-13-38';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -314,9 +314,26 @@ const EMAILJS_PUBLIC_KEY = 'AuQvlX9lCdOzqo1F4';
 const EMAILJS_SERVICE_ID = 'service_dnvy6p8';
 const EMAILJS_TEMPLATE_REQUEST = 'template_v14olsm';   // אותה תבנית מ"מבצעים"
 const EMAILJS_TEMPLATE_RESPONSE = 'template_gsj7m1c';  // אותה תבנית מ"מבצעים"
+const EMAILJS_TEMPLATE_PUBLISH = 'template_gsj7m1c'; // אותה תבנית גנרית ששימשה לתשובות חופשה, הפכה לגנרית
 const MANAGER_EMAIL = 'shlomoa@kan.org.il';
 if(window.emailjs) emailjs.init(EMAILJS_PUBLIC_KEY);
 
+async function sendPublishNotificationEmails(weekLabel){
+  const recipients = [
+    ...workers.filter(w=>w.active && w.email).map(w=>w.email),
+    ...viewers.filter(v=>v.active && v.email).map(v=>v.email)
+  ];
+  const uniqueEmails = [...new Set(recipients)];
+  const subject = `פורסם סידור עבודה לשבוע ${weekLabel}`;
+  const message = `<h2 style="color:#1A6FBF;">פורסם סידור עבודה</h2>
+    <p>פורסם סידור העבודה לשבוע <strong>${weekLabel}</strong>.</p>
+    <p><a href="https://shlomoa-code.github.io/tzalamim-schedule/">לצפייה בסידור</a></p>`;
+  for(const email of uniqueEmails){
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PUBLISH, { subject, message, worker_email: email });
+    }catch(e){ console.error('publish email failed for', email, e); }
+  }
+}
 async function sendVacationRequestEmail(workerName, fromDate, toDate, note){
   if(EMAILJS_TEMPLATE_REQUEST.startsWith('TEMPLATE_ID')) return; // עדיין לא הוגדרה תבנית
   try{
@@ -326,13 +343,16 @@ async function sendVacationRequestEmail(workerName, fromDate, toDate, note){
   }catch(e){ console.error('email send failed', e); }
 }
 async function sendVacationResponseEmail(workerEmail, workerName, status, fromDate, toDate){
-  if(EMAILJS_TEMPLATE_RESPONSE.startsWith('TEMPLATE_ID') || !workerEmail) return;
+  if(!workerEmail) return;
   const statusHe = status==='approved' ? 'אושרה' : 'נדחתה';
   const statusColor = status==='approved' ? '#0F6E56' : '#A32D2D';
+  const subject = `${statusHe} — תשובה לבקשת החופש שלך`;
+  const message = `<h2 style="color:${statusColor};">${statusHe} — בקשת החופש שלך</h2>
+    <p>שלום ${workerName},</p>
+    <p>בקשת החופש שלך לתאריכים <strong>${fromDate}</strong> עד <strong>${toDate}</strong> ${statusHe}.</p>`;
   try{
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_RESPONSE, {
-      worker_name: workerName, status: statusHe, status_color: statusColor,
-      from_date: fromDate, to_date: toDate, worker_email: workerEmail
+      subject, message, worker_email: workerEmail
     });
   }catch(e){ console.error('email send failed', e); }
 }
@@ -845,6 +865,10 @@ async function togglePublish(){
   weekPublished = newVal;
   updatePublishBtn();
   render();
+  if(newVal){
+    const sunday = getWeekStart(weekOffset);
+    sendPublishNotificationEmails(fmtWeekLabel(sunday));
+  }
 }
 function updatePublishBtn(){
   const btn = document.getElementById('publish-toggle-btn');
