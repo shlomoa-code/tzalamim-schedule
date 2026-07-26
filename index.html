@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-39';
+const APP_VERSION = '2026-07-13-40';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -590,6 +590,12 @@ let overviewConstraintsWeek = null;
 let scheduleWeekConstraints = [];
 let viewers = [];
 let selectedConstraintWorker = '';
+function getCurrentWorkerId(){
+  const savedEmail = (localStorage.getItem('team_access_email')||'').trim().toLowerCase();
+  if(!savedEmail) return null;
+  const w = workers.find(x=>x.email && x.email.trim().toLowerCase()===savedEmail);
+  return w ? w.id : null;
+}
 let accessRole = localStorage.getItem('access_role') || 'full';
 let constraintsWeekOffset = 1;
 let selectedMyShiftsWorker = '';
@@ -2171,10 +2177,17 @@ function renderConstraints(){
     <button class="btn btn-sm" onclick="changeConstraintsWeek(1)">▶</button>
   </div>
   <div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
-  html += `<select class="worker-select" onchange="selectedConstraintWorker=this.value;render()">
+  const myWorkerId = getCurrentWorkerId();
+  if(myWorkerId && !editMode){
+    if(!selectedConstraintWorker) selectedConstraintWorker = myWorkerId;
+    const myName = (workers.find(w=>w.id===myWorkerId)||{}).name || '';
+    html += `<div class="sub" style="margin-bottom:10px">מסמן/ת עבור: <b>${myName}</b></div>`;
+  } else {
+    html += `<select class="worker-select" onchange="selectedConstraintWorker=this.value;render()">
     <option value="">— בחר את שמך —</option>
     ${activeWorkers.map(w=>`<option value="${w.id}" ${selectedConstraintWorker===w.id?'selected':''}>${w.name}</option>`).join('')}
   </select>`;
+  }
   if(!selectedConstraintWorker){
     html += `<div class="empty-msg">בחר שם כדי לסמן אילוצים</div>`;
     html += renderConstraintsOverview();
@@ -2291,12 +2304,16 @@ async function pickConstraintStatus(status){
 /* ---------- בקשות חופשה ---------- */
 function renderVacations(){
   const activeWorkers = workers.filter(w=>w.active);
+  const myWorkerId = getCurrentWorkerId();
+  const lockToSelf = myWorkerId && !editMode;
   let html = `<div class="vac-form">
     <div class="field"><label>שם</label>
-      <select id="vac-worker">
+      ${lockToSelf
+        ? `<input type="hidden" id="vac-worker" value="${myWorkerId}"><div style="padding:8px 0;font-weight:700">${(workers.find(w=>w.id===myWorkerId)||{}).name||''}</div>`
+        : `<select id="vac-worker">
         <option value="">בחר עובד</option>
         ${activeWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}
-      </select>
+      </select>`}
     </div>
     <div class="field"><label>מתאריך</label><input type="date" id="vac-from"></div>
     <div class="field"><label>עד תאריך</label><input type="date" id="vac-to"></div>
