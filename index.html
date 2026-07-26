@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-38';
+const APP_VERSION = '2026-07-13-39';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2494,8 +2494,42 @@ function renderDuty(){
   const todayStr = dateStr(new Date());
   const upcoming = dutyRoster.filter(d=>d.duty_date>=todayStr);
   const past = dutyRoster.filter(d=>d.duty_date<todayStr);
+
+  // בדיקת חוסרים: כל שישי/שבת בטווח התאריכים של הלוח שאין לו רשומה בכלל, או שיש רשומה אבל בלי אף שיבוץ
+  const gapWarnings = [];
+  if(dutyRoster.length){
+    const allDates = dutyRoster.map(d=>d.duty_date).sort();
+    const minDate = allDates[0], maxDate = allDates[allDates.length-1];
+    const dateSet = new Set(allDates);
+    const cur = new Date(minDate);
+    const maxDt = new Date(maxDate);
+    while(cur <= maxDt){
+      const dow = cur.getDay(); // 5=Friday, 6=Saturday
+      if(dow===5 || dow===6){
+        const ds = dateStr(cur);
+        if(!dateSet.has(ds)){
+          gapWarnings.push(`${ds} (${dow===5?'שישי':'שבת'}) - חסר לגמרי מהלוח`);
+        }
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+    dutyRoster.forEach(d=>{
+      if(!d.ta1 && !d.jerusalem1){
+        gapWarnings.push(`${d.duty_date} (${d.day_label||''}) - קיים בלוח אבל בלי אף שיבוץ`);
+      }
+    });
+    gapWarnings.sort();
+  }
+
   let html = `<div class="sub" style="margin-bottom:12px">לוח תורנויות שישי-שבת וחגים לאורך השנה. גלוי לכולם, עריכה רק למנהל.</div>
   <div class="sub" style="margin-bottom:12px"><span class="duty-original">שם בכחול</span> = שובץ במקור &nbsp; · &nbsp; <span class="duty-replace">שם בכתום</span> = החלפה בפועל (באחריות העובדים)</div>`;
+
+  if(gapWarnings.length){
+    html += `<div style="background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+      <b>⚠️ נמצאו ${gapWarnings.length} חוסרים בלוח התורנויות:</b>
+      <ul style="margin:6px 0 0;padding-right:18px">${gapWarnings.map(w=>`<li>${w}</li>`).join('')}</ul>
+    </div>`;
+  }
 
   if(editMode){
     const threeWeeksAgo = shiftDateStr(todayStr, -21);
