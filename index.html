@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-40';
+const APP_VERSION = '2026-07-13-42';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1693,9 +1693,11 @@ const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','
 let freelanceLogData = null;
 async function loadFreelanceLog(){
   const [sRes, mRes] = await Promise.all([
-    sb.from('shifts').select('week_start,day_of_week,freelance_name,freelance_recorder_name'),
-    sb.from('magazine_teams').select('week_start,day_of_week,freelance_photographer_name,freelance_recorder_name,magazine')
+    sb.from('shifts').select('week_start,day_of_week,freelance_name,freelance_recorder_name').limit(5000),
+    sb.from('magazine_teams').select('week_start,day_of_week,freelance_photographer_name,freelance_recorder_name,magazine').limit(5000)
   ]);
+  if(sRes.error) console.error('freelance log shifts fetch error', sRes.error);
+  if(mRes.error) console.error('freelance log magazine fetch error', mRes.error);
   const entries = []; // {date, name}
   const addDate = (weekStart, dayIdx) => {
     const d = new Date(weekStart); d.setDate(d.getDate()+dayIdx);
@@ -1703,13 +1705,13 @@ async function loadFreelanceLog(){
   };
   (sRes.data||[]).forEach(s=>{
     const d = addDate(s.week_start, s.day_of_week);
-    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:s.freelance_name});
-    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:s.freelance_recorder_name});
+    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:s.freelance_name.trim()});
+    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:s.freelance_recorder_name.trim()});
   });
   (mRes.data||[]).forEach(t=>{
     const d = addDate(t.week_start, t.day_of_week);
-    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:t.freelance_photographer_name});
-    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:t.freelance_recorder_name});
+    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:t.freelance_photographer_name.trim()});
+    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:t.freelance_recorder_name.trim()});
   });
   // קיבוץ: חודש -> שם פרילנס -> סט תאריכים ייחודי
   const byMonth = {};
