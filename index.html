@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-43';
+const APP_VERSION = '2026-07-13-45';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1691,6 +1691,7 @@ function renderTopline(){
 }
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 let freelanceLogData = null;
+let freelanceLogDebug = null;
 async function loadFreelanceLog(){
   const [sRes, mRes] = await Promise.all([
     sb.from('shifts').select('week_start,day_of_week,freelance_name,freelance_recorder_name').limit(5000),
@@ -1698,6 +1699,7 @@ async function loadFreelanceLog(){
   ]);
   if(sRes.error) console.error('freelance log shifts fetch error', sRes.error);
   if(mRes.error) console.error('freelance log magazine fetch error', mRes.error);
+  const normName = (n) => (n||'').normalize('NFC').replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, '').replace(/\s+/g,' ').trim();
   const entries = []; // {date, name}
   const addDate = (weekStart, dayIdx) => {
     const d = new Date(weekStart); d.setDate(d.getDate()+dayIdx);
@@ -1705,13 +1707,13 @@ async function loadFreelanceLog(){
   };
   (sRes.data||[]).forEach(s=>{
     const d = addDate(s.week_start, s.day_of_week);
-    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:s.freelance_name.trim()});
-    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:s.freelance_recorder_name.trim()});
+    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:normName(s.freelance_name)});
+    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:normName(s.freelance_recorder_name)});
   });
   (mRes.data||[]).forEach(t=>{
     const d = addDate(t.week_start, t.day_of_week);
-    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:t.freelance_photographer_name.trim()});
-    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:t.freelance_recorder_name.trim()});
+    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:normName(t.freelance_photographer_name)});
+    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:normName(t.freelance_recorder_name)});
   });
   // קיבוץ: חודש -> שם פרילנס -> סט תאריכים ייחודי
   const byMonth = {};
@@ -1722,6 +1724,8 @@ async function loadFreelanceLog(){
     byMonth[monthKey][name].add(date);
   });
   freelanceLogData = byMonth;
+  freelanceLogDebug = {shiftsRows:(sRes.data||[]).length, magRows:(mRes.data||[]).length, entriesTotal:entries.length,
+    matiEntries: entries.filter(e=>e.name.includes('שטיין'))};
   render();
 }
 function renderFreelanceLog(){
@@ -1733,6 +1737,12 @@ function renderFreelanceLog(){
   if(!months.length) return `<div class="empty-msg">לא נמצאו ימי פרילנס</div>`;
   let html = `<div class="sub" style="margin-bottom:12px">ריכוז כל הימים שפרילנסרים עבדו (צילום או הקלטה), לפי חודש. נאסף מכל השבועות בסידור.</div>`;
   html += `<button class="btn" style="margin-bottom:16px" onclick="freelanceLogData=null; render()">🔄 רענן נתונים</button>`;
+  if(freelanceLogDebug){
+    html += `<div style="background:#FFF3CD;border:1px solid #E4C441;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;direction:ltr;text-align:left">
+      <b>DEBUG:</b> shifts rows fetched: ${freelanceLogDebug.shiftsRows} | magazine rows fetched: ${freelanceLogDebug.magRows} | total freelance instances: ${freelanceLogDebug.entriesTotal}<br>
+      matches containing "שטיין": ${JSON.stringify(freelanceLogDebug.matiEntries)}
+    </div>`;
+  }
   months.forEach(monthKey=>{
     const [y,m] = monthKey.split('-');
     const names = Object.keys(freelanceLogData[monthKey]).sort((a,b)=>a.localeCompare(b,'he'));
