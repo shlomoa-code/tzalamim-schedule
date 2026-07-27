@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-46';
+const APP_VERSION = '2026-07-13-49';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -660,33 +660,33 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, v, f, mv, dr, vw, swc, wp, tl] = await Promise.all([
+  const [w, s, m, t, c, vAll, f, mv, dr, vw, swc, wp, tlAll] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('topline_notes').select('*').eq('week_start', weekStart),
     sb.from('constraints').select('*').eq('week_start', constraintsWeekStart),
-    sb.from('vacation_requests').select('*').order('from_date'),
+    fetchAllRows('vacation_requests', '*'),
     sb.from('freelancers').select('*').order('name'),
     sb.from('mivtzaim_notes').select('*').eq('week_start', weekStart),
     sb.from('duty_roster').select('*').order('duty_date'),
     sb.from('viewers').select('*').order('name'),
     sb.from('constraints').select('*').eq('week_start', weekStart),
     sb.from('week_publish').select('published').eq('week_start', weekStart),
-    sb.from('topline_log').select('*').order('log_date', {ascending:false})
+    fetchAllRows('topline_log', '*')
   ]);
   workers = w.data || [];
   shifts = s.data || [];
   magTeams = m.data || [];
   toplineNotes = t.data || [];
   constraintsData = c.data || [];
-  vacationRequests = v.data || [];
+  vacationRequests = (vAll || []).sort((a,b)=>(a.from_date||'').localeCompare(b.from_date||''));
   freelancers = f.data || [];
   mivtzaimNotes = mv.data || [];
   dutyRoster = dr.data || [];
   viewers = vw.data || [];
   scheduleWeekConstraints = swc.data || [];
-  toplineLog = tl.data || [];
+  toplineLog = (tlAll || []).sort((a,b)=>(b.log_date||'').localeCompare(a.log_date||''));
   if(wp.error || !wp.data || !wp.data.length){
     const isFutureWeek = weekStart > dateStr(getWeekStart(0));
     weekPublished = !isFutureWeek; // שבועות עתידיים שעדיין לא פורסמו במפורש - מוסתרים כברירת מחדל. שבועות נוכחיים/עבר - גלויים כרגיל.
@@ -1691,7 +1691,6 @@ function renderTopline(){
 }
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 let freelanceLogData = null;
-let freelanceLogDebug = null;
 async function fetchAllRows(table, columns){
   let all = [];
   let from = 0;
@@ -1737,8 +1736,6 @@ async function loadFreelanceLog(){
     byMonth[monthKey][name].add(date);
   });
   freelanceLogData = byMonth;
-  freelanceLogDebug = {shiftsRows:(sRes.data||[]).length, magRows:(mRes.data||[]).length, entriesTotal:entries.length,
-    matiEntries: entries.filter(e=>e.name.includes('שטיין'))};
   render();
 }
 function renderFreelanceLog(){
@@ -1750,12 +1747,6 @@ function renderFreelanceLog(){
   if(!months.length) return `<div class="empty-msg">לא נמצאו ימי פרילנס</div>`;
   let html = `<div class="sub" style="margin-bottom:12px">ריכוז כל הימים שפרילנסרים עבדו (צילום או הקלטה), לפי חודש. נאסף מכל השבועות בסידור.</div>`;
   html += `<button class="btn" style="margin-bottom:16px" onclick="freelanceLogData=null; render()">🔄 רענן נתונים</button>`;
-  if(freelanceLogDebug){
-    html += `<div style="background:#FFF3CD;border:1px solid #E4C441;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;direction:ltr;text-align:left">
-      <b>DEBUG:</b> shifts rows fetched: ${freelanceLogDebug.shiftsRows} | magazine rows fetched: ${freelanceLogDebug.magRows} | total freelance instances: ${freelanceLogDebug.entriesTotal}<br>
-      matches containing "שטיין": ${JSON.stringify(freelanceLogDebug.matiEntries)}
-    </div>`;
-  }
   months.forEach(monthKey=>{
     const [y,m] = monthKey.split('-');
     const names = Object.keys(freelanceLogData[monthKey]).sort((a,b)=>a.localeCompare(b,'he'));
@@ -2901,11 +2892,7 @@ async function showShootDayReport(){
   document.getElementById('popup-opts').innerHTML = `<div class="empty-msg">טוען...</div>`;
   document.getElementById('popup-overlay').classList.add('show');
 
-  const {data, error} = await sb.from('magazine_teams').select('reporter_name,topic,shoot_day');
-  if(error){
-    document.getElementById('popup-opts').innerHTML = `<div class="empty-msg">שגיאה בטעינת הדוח.</div>`;
-    return;
-  }
+  const data = await fetchAllRows('magazine_teams', 'reporter_name,topic,shoot_day');
 
   const groups = {};
   (data||[]).forEach(t=>{
