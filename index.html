@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-49';
+const APP_VERSION = '2026-07-13-50';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2393,22 +2393,35 @@ async function submitVacation(){
     // בדיקת חפיפה עם חופשה קיימת לאותו עובד, לפני שמירה
     const overlap = vacationRequests.find(v=>v.worker_id===worker_id && v.status==='approved' && v.from_date<=to_date && from_date<=v.to_date);
     if(overlap){
-      const ok = confirm(`שים לב: ל${workerName(worker_id)} כבר יש חופשה מאושרת בין ${overlap.from_date} ל-${overlap.to_date} שחופפת לתאריכים האלה.\nלהמשיך ולהוסיף בכל זאת (עלול ליצור כפילות)?`);
-      if(!ok) return;
+      alert(`ל${workerName(worker_id)} כבר יש חופשה מאושרת בין ${overlap.from_date} ל-${overlap.to_date} שחופפת לתאריכים האלה.\nהמערכת לא מאפשרת כפילות - אם צריך לשנות, ערוך או מחק קודם את הרשומה הקיימת.`);
+      return;
     }
     // מנהל מזין ישירות חופשה שכבר סוכמה (למשל בוואטסאפ) - נכנסת ישר כ"מאושר", בלי מייל ובלי שלב אישור
-    const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'approved', req_type:'vacation'}).select();
+    const {data, error} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'approved', req_type:'vacation'}).select();
+    if(error){ alert('שגיאה: נראה שיש כבר חופשה מאושרת חופפת לעובד הזה בתאריכים האלה. הרשומה לא נשמרה כדי למנוע כפילות.'); return; }
     if(data) vacationRequests.push(data[0]);
     render();
     return;
   }
-  const {data} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'pending', req_type:'vacation'}).select();
+  const {data, error} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'pending', req_type:'vacation'}).select();
+  if(error){ alert('שגיאה בשמירת הבקשה. נסה שוב.'); return; }
   if(data) vacationRequests.push(data[0]);
   sendVacationRequestEmail(workerName(worker_id), from_date, to_date, note);
   render();
 }
 async function setVacStatus(id, status){
-  await sb.from('vacation_requests').update({status}).eq('id',id);
+  if(status==='approved'){
+    const v = vacationRequests.find(x=>x.id===id);
+    if(v){
+      const overlap = vacationRequests.find(o=>o.id!==id && o.worker_id===v.worker_id && o.status==='approved' && o.from_date<=v.to_date && v.from_date<=o.to_date);
+      if(overlap){
+        alert(`לא ניתן לאשר - יש כבר חופשה מאושרת חופפת (${overlap.from_date} עד ${overlap.to_date}) לאותו עובד. יש לטפל בכפילות קודם.`);
+        return;
+      }
+    }
+  }
+  const {error} = await sb.from('vacation_requests').update({status}).eq('id',id);
+  if(error){ alert('שגיאה בעדכון הסטטוס - כנראה חפיפה עם חופשה מאושרת אחרת.'); return; }
   const v = vacationRequests.find(x=>x.id===id); if(v) v.status=status;
   if(v && status!=='pending'){
     const w = workers.find(x=>x.id===v.worker_id);
