@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-53';
+const APP_VERSION = '2026-07-13-54';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2504,31 +2504,32 @@ function changeMonth(delta){
 function workerDayStatus(workerId, dayIdx, ds){
   const items = [];
   let hasRealShift = false;
+  let isPaidDay = false; // משמרת אמיתית, חופש מאושר, או מחלה - יום שעליו העובד מקבל תשלום
   shifts.forEach(s=>{
     if(s.day_of_week!==dayIdx) return;
     if(s.worker_id===workerId || s.recorder_id===workerId){
       const regionName = REGIONS[s.region]?.name || s.region;
       items.push(s.label==='כונן' ? `כונן (${regionName})` : regionName);
-      if(s.label!=='כונן') hasRealShift = true;
+      if(s.label!=='כונן'){ hasRealShift = true; isPaidDay = true; }
     }
-    if(s.sick_worker_id===workerId || s.sick_recorder_id===workerId) items.push('🤒 מחלה (בפועל)');
+    if(s.sick_worker_id===workerId || s.sick_recorder_id===workerId){ items.push('🤒 מחלה (בפועל)'); isPaidDay = true; }
   });
   magTeams.forEach(t=>{
     if(t.day_of_week!==dayIdx) return;
     if(t.photographer_id===workerId || t.recorder_id===workerId){
       items.push(MAGAZINES[t.magazine]?.name || t.magazine);
-      hasRealShift = true;
+      hasRealShift = true; isPaidDay = true;
     }
-    if(t.sick_photographer_id===workerId || t.sick_recorder_id===workerId) items.push('🤒 מחלה (בפועל)');
+    if(t.sick_photographer_id===workerId || t.sick_recorder_id===workerId){ items.push('🤒 מחלה (בפועל)'); isPaidDay = true; }
   });
   const activeVac = vacationRequests.find(v=>v.status==='approved' && v.worker_id===workerId && v.from_date<=ds && v.to_date>=ds);
-  if(activeVac) items.push(activeVac.req_type==='sick' ? '🤒 מחלה מתוכננת' : '🏖️ חופש מאושר');
+  if(activeVac){ items.push(activeVac.req_type==='sick' ? '🤒 מחלה מתוכננת' : '🏖️ חופש מאושר'); isPaidDay = true; }
   const c = overviewConstraints.find(x=>x.worker_id===workerId && x.day_of_week===dayIdx);
   if(c){
-    if(c.status==='sick') items.push('🤒 מחלה (מוצהר)');
+    if(c.status==='sick'){ items.push('🤒 מחלה (מוצהר)'); isPaidDay = true; }
     if(c.status==='comp_day') items.push('🔁 יום תמורה (בקשה)');
   }
-  return {items, hasRealShift};
+  return {items, hasRealShift, isPaidDay};
 }
 function renderOverview(){
   const sunday = getWeekStart(weekOffset);
@@ -2547,8 +2548,8 @@ function renderOverview(){
   const rowHtml = w=>{
     let weekCount = 0;
     const cells = DAYS.map(d=>{
-      const {items, hasRealShift} = workerDayStatus(w.id, d.i, weekDates[d.i]);
-      if(hasRealShift) weekCount++;
+      const {items, isPaidDay} = workerDayStatus(w.id, d.i, weekDates[d.i]);
+      if(isPaidDay) weekCount++;
       const content = items.length ? items.join('<br>') : '';
       return `<td class="day-cell overview-cell" style="font-size:10px">${content}</td>`;
     }).join('');
@@ -2564,7 +2565,7 @@ function renderOverview(){
 
   const rows = activeWorkers.map(rowHtml).join('');
 
-  return `<div class="sub" style="margin-bottom:12px">מבט מרוכז — מי משובץ/מחלה/חופש בכל יום השבוע. שורה אדומה = לא קיבל/ה אף משמרת אמיתית השבוע (כוננות בלבד לא נספרת).</div>
+  return `<div class="sub" style="margin-bottom:12px">מבט מרוכז — מי משובץ/מחלה/חופש בכל יום השבוע. סה"כ כולל גם ימי חופש/מחלה מאושרים (לא רק משמרות בפועל, כי גם עליהם מקבלים תשלום) - כוננות בלבד עדיין לא נספרת. שורה אדומה = אין אף משמרת, חופש, או מחלה השבוע.</div>
   <div class="table-scroll"><table class="master-table">
     <thead><tr><th class="row-label-col">עובד</th>${header}<th>סה"כ</th></tr></thead>
     <tbody>${rows}</tbody>
