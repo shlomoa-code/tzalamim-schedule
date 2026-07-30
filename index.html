@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-51';
+const APP_VERSION = '2026-07-13-52';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -595,6 +595,14 @@ function getCurrentWorkerId(){
   if(!savedEmail) return null;
   const w = workers.find(x=>x.email && x.email.trim().toLowerCase()===savedEmail);
   return w ? w.id : null;
+}
+function isConstraintsWindowOpenForWeek(weekStartDateStr){
+  // הגשת אילוצים לשבוע מסוים ננעלת ביום חמישי בשעה 11:00 שלפניו (3 ימים לפני תחילת השבוע)
+  const weekStart = new Date(weekStartDateStr);
+  const deadline = new Date(weekStart);
+  deadline.setDate(deadline.getDate() - 3);
+  deadline.setHours(11,0,0,0);
+  return new Date() < deadline;
 }
 let accessRole = localStorage.getItem('access_role') || 'full';
 let constraintsWeekOffset = 1;
@@ -2193,6 +2201,10 @@ function renderConstraints(){
     <button class="btn btn-sm" onclick="changeConstraintsWeek(1)">▶</button>
   </div>
   <div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
+  const windowOpen = editMode || isConstraintsWindowOpenForWeek(dateStr(nextSunday));
+  if(!windowOpen){
+    html += `<div style="background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px">🔒 ההגשה לשבוע הזה ננעלה (המועד היה עד יום חמישי 11:00). אפשר לצפות בלבד, ולסמן עבור שבועות מאוחרים יותר.</div>`;
+  }
   const myWorkerId = getCurrentWorkerId();
   if(myWorkerId && !editMode){
     if(!selectedConstraintWorker) selectedConstraintWorker = myWorkerId;
@@ -2217,7 +2229,7 @@ function renderConstraints(){
     const status = row ? (row.status||'available') : 'available';
     const note = row ? (row.note||'') : '';
     const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
-    html += `<div class="constraint-pill ${st.cls}" onclick="openConstraintPopup(${day.i})">
+    html += `<div class="constraint-pill ${st.cls}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.75"'}>
       ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}
     </div>`;
   });
@@ -2296,6 +2308,11 @@ function openConstraintPopup(day){
 }
 async function pickConstraintStatus(status){
   const nextWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
+  if(!editMode && !isConstraintsWindowOpenForWeek(nextWeekStart)){
+    alert('ההגשה לשבוע הזה כבר ננעלה (המועד היה עד יום חמישי 11:00).');
+    closePopup();
+    return;
+  }
   const day = constraintPopupDay;
   const existing = constraintsData.find(c=>c.worker_id===selectedConstraintWorker && c.day_of_week===day);
   let note = existing ? (existing.note||'') : '';
