@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-56';
+const APP_VERSION = '2026-07-13-57';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -896,8 +896,13 @@ async function togglePublish(){
   updatePublishBtn();
   render();
   if(newVal){
-    const sunday = getWeekStart(weekOffset);
-    sendPublishNotificationEmails(fmtWeekLabel(sunday));
+    const {data} = await sb.from('week_publish').select('notified').eq('week_start', weekStart).maybeSingle();
+    const alreadyNotified = data && data.notified;
+    if(!alreadyNotified){
+      const sunday = getWeekStart(weekOffset);
+      await sendPublishNotificationEmails(fmtWeekLabel(sunday));
+      await sb.from('week_publish').update({notified:true}).eq('week_start', weekStart);
+    }
   }
 }
 function updatePublishBtn(){
