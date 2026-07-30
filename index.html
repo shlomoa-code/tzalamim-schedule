@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-52';
+const APP_VERSION = '2026-07-13-53';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -596,13 +596,28 @@ function getCurrentWorkerId(){
   const w = workers.find(x=>x.email && x.email.trim().toLowerCase()===savedEmail);
   return w ? w.id : null;
 }
+let serverTimeOffsetMs = 0;
+async function syncServerTime(){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/', {method:'HEAD', headers:{apikey: SUPABASE_KEY}, cache:'no-store'});
+    const serverDateHeader = res.headers.get('date');
+    if(serverDateHeader){
+      const serverTime = new Date(serverDateHeader).getTime();
+      serverTimeOffsetMs = serverTime - Date.now();
+    }
+  }catch(e){ console.error('server time sync failed', e); }
+}
+function getTrustedNow(){
+  return new Date(Date.now() + serverTimeOffsetMs);
+}
 function isConstraintsWindowOpenForWeek(weekStartDateStr){
   // הגשת אילוצים לשבוע מסוים ננעלת ביום חמישי בשעה 11:00 שלפניו (3 ימים לפני תחילת השבוע)
+  // מבוסס על שעון השרת (לא שעון המכשיר), כדי שלא ניתן לעקוף על ידי שינוי שעון מקומי
   const weekStart = new Date(weekStartDateStr);
   const deadline = new Date(weekStart);
   deadline.setDate(deadline.getDate() - 3);
   deadline.setHours(11,0,0,0);
-  return new Date() < deadline;
+  return getTrustedNow() < deadline;
 }
 let accessRole = localStorage.getItem('access_role') || 'full';
 let constraintsWeekOffset = 1;
@@ -3125,6 +3140,8 @@ function showUpdateBanner(){
   document.body.appendChild(b);
 }
 setInterval(checkForNewVersion, 2*60*1000);
+syncServerTime();
+setInterval(syncServerTime, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkForNewVersion(); });
 checkForNewVersion();
 
