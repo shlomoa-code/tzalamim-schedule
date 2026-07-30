@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-54';
+const APP_VERSION = '2026-07-13-56';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -548,6 +548,7 @@ const MAGAZINES = {
 
 const CONSTRAINT_STATUSES = [
   {id:'available',label:'פנוי',cls:'avail'},
+  {id:'blocked',label:'לא יכול לעבוד',cls:'blocked'},
   {id:'prefer_morning',label:'מעדיף בוקר',cls:'prefer-am'},
   {id:'must_morning',label:'חייב בוקר',cls:'must-am'},
   {id:'prefer_late',label:'מעדיף משמרת מאוחרת',cls:'prefer-pm'},
@@ -2315,16 +2316,24 @@ function renderConstraintsOverview(){
   return html;
 }
 let constraintPopupDay = null;
+const BLOCKED_OPTION_ALLOWED = ['סרחיו ארדיטי', 'אורן יעקובוביץ'];
 function openConstraintPopup(day){
   constraintPopupDay = day;
   document.getElementById('popup-title').textContent = 'בחר סטטוס ליום';
-  document.getElementById('popup-opts').innerHTML = CONSTRAINT_STATUSES.map(s=>`<div class="popup-opt" onclick="pickConstraintStatus('${s.id}')">${s.label}</div>`).join('');
+  const wName = workerName(selectedConstraintWorker) || '';
+  const statuses = BLOCKED_OPTION_ALLOWED.includes(wName) ? CONSTRAINT_STATUSES : CONSTRAINT_STATUSES.filter(s=>s.id!=='blocked');
+  document.getElementById('popup-opts').innerHTML = statuses.map(s=>`<div class="popup-opt" onclick="pickConstraintStatus('${s.id}')">${s.label}</div>`).join('');
   document.getElementById('popup-overlay').classList.add('show');
 }
 async function pickConstraintStatus(status){
   const nextWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
   if(!editMode && !isConstraintsWindowOpenForWeek(nextWeekStart)){
     alert('ההגשה לשבוע הזה כבר ננעלה (המועד היה עד יום חמישי 11:00).');
+    closePopup();
+    return;
+  }
+  if(status==='blocked' && !BLOCKED_OPTION_ALLOWED.includes(workerName(selectedConstraintWorker)||'')){
+    alert('אפשרות זו אינה זמינה עבור עובד זה.');
     closePopup();
     return;
   }
