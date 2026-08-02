@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-57';
+const APP_VERSION = '2026-07-13-58';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1720,6 +1720,7 @@ function renderTopline(){
 }
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 let freelanceLogData = null;
+let freelanceRoleTotals = null;
 async function fetchAllRows(table, columns){
   let all = [];
   let from = 0;
@@ -1741,30 +1742,36 @@ async function loadFreelanceLog(){
   const sRes = {data: shiftsData};
   const mRes = {data: magData};
   const normName = (n) => (n||'').normalize('NFC').replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, '').replace(/\s+/g,' ').trim();
-  const entries = []; // {date, name}
+  const entries = []; // {date, name, role}
   const addDate = (weekStart, dayIdx) => {
     const d = new Date(weekStart); d.setDate(d.getDate()+dayIdx);
     return dateStr(d);
   };
   (sRes.data||[]).forEach(s=>{
     const d = addDate(s.week_start, s.day_of_week);
-    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:normName(s.freelance_name)});
-    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:normName(s.freelance_recorder_name)});
+    if(s.freelance_name && s.freelance_name!=='?') entries.push({date:d, name:normName(s.freelance_name), role:'photographer'});
+    if(s.freelance_recorder_name && s.freelance_recorder_name!=='?') entries.push({date:d, name:normName(s.freelance_recorder_name), role:'recorder'});
   });
   (mRes.data||[]).forEach(t=>{
     const d = addDate(t.week_start, t.day_of_week);
-    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:normName(t.freelance_photographer_name)});
-    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:normName(t.freelance_recorder_name)});
+    if(t.freelance_photographer_name && t.freelance_photographer_name!=='?') entries.push({date:d, name:normName(t.freelance_photographer_name), role:'photographer'});
+    if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:normName(t.freelance_recorder_name), role:'recorder'});
   });
-  // קיבוץ: חודש -> שם פרילנס -> סט תאריכים ייחודי
+  // קיבוץ: חודש -> שם פרילנס -> סט תאריכים ייחודי (לרשימה לפי אדם)
   const byMonth = {};
-  entries.forEach(({date,name})=>{
+  // קיבוץ נוסף: חודש -> תפקיד -> סט (שם+תאריך) ייחודי (לסיכום הכולל)
+  const roleTotalsByMonth = {};
+  entries.forEach(({date,name,role})=>{
     const monthKey = date.slice(0,7); // YYYY-MM
     byMonth[monthKey] = byMonth[monthKey] || {};
     byMonth[monthKey][name] = byMonth[monthKey][name] || new Set();
     byMonth[monthKey][name].add(date);
+
+    roleTotalsByMonth[monthKey] = roleTotalsByMonth[monthKey] || {photographer:new Set(), recorder:new Set()};
+    roleTotalsByMonth[monthKey][role].add(name+'|'+date);
   });
   freelanceLogData = byMonth;
+  freelanceRoleTotals = roleTotalsByMonth;
   render();
 }
 function renderFreelanceLog(){
@@ -1776,6 +1783,22 @@ function renderFreelanceLog(){
   if(!months.length) return `<div class="empty-msg">לא נמצאו ימי פרילנס</div>`;
   let html = `<div class="sub" style="margin-bottom:12px">ריכוז כל הימים שפרילנסרים עבדו (צילום או הקלטה), לפי חודש. נאסף מכל השבועות בסידור.</div>`;
   html += `<button class="btn" style="margin-bottom:16px" onclick="freelanceLogData=null; render()">🔄 רענן נתונים</button>`;
+
+  // סיכום חודשי - כמה ימי צלם וכמה ימי מקליט
+  html += `<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:20px">
+    <h3 style="font-size:14px;margin:0 0 10px">📊 סיכום חודשי - ימי צלם מול ימי מקליט</h3>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--line)"><th style="text-align:right;padding:4px 0">חודש</th><th style="text-align:center;padding:4px 0">ימי צלם</th><th style="text-align:center;padding:4px 0">ימי מקליט</th><th style="text-align:left;padding:4px 0">סה"כ</th></tr></thead>
+      <tbody>
+        ${months.map(key=>{
+          const [y,m] = key.split('-');
+          const rt = freelanceRoleTotals[key] || {photographer:new Set(), recorder:new Set()};
+          return `<tr style="border-bottom:1px solid #F0F0EE"><td style="padding:4px 0">${HEB_MONTHS[parseInt(m,10)-1]} ${y}</td><td style="text-align:center;padding:4px 0;font-weight:700">${rt.photographer.size}</td><td style="text-align:center;padding:4px 0;font-weight:700">${rt.recorder.size}</td><td style="text-align:left;padding:4px 0;font-weight:700">${rt.photographer.size+rt.recorder.size}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+
   months.forEach(monthKey=>{
     const [y,m] = monthKey.split('-');
     const names = Object.keys(freelanceLogData[monthKey]).sort((a,b)=>a.localeCompare(b,'he'));
