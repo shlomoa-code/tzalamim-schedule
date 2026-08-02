@@ -301,7 +301,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-58';
+const APP_VERSION = '2026-07-13-59';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1734,6 +1734,7 @@ async function fetchAllRows(table, columns){
   }
   return all;
 }
+const FREELANCE_LOG_EXCLUDE = ['אמיר בן אהרון'];
 async function loadFreelanceLog(){
   const [shiftsData, magData] = await Promise.all([
     fetchAllRows('shifts', 'week_start,day_of_week,freelance_name,freelance_recorder_name'),
@@ -1758,10 +1759,11 @@ async function loadFreelanceLog(){
     if(t.freelance_recorder_name && t.freelance_recorder_name!=='?') entries.push({date:d, name:normName(t.freelance_recorder_name), role:'recorder'});
   });
   // קיבוץ: חודש -> שם פרילנס -> סט תאריכים ייחודי (לרשימה לפי אדם)
+  const filteredEntries = entries.filter(e=>!FREELANCE_LOG_EXCLUDE.includes(e.name));
   const byMonth = {};
   // קיבוץ נוסף: חודש -> תפקיד -> סט (שם+תאריך) ייחודי (לסיכום הכולל)
   const roleTotalsByMonth = {};
-  entries.forEach(({date,name,role})=>{
+  filteredEntries.forEach(({date,name,role})=>{
     const monthKey = date.slice(0,7); // YYYY-MM
     byMonth[monthKey] = byMonth[monthKey] || {};
     byMonth[monthKey][name] = byMonth[monthKey][name] || new Set();
