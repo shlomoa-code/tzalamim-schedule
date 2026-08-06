@@ -302,7 +302,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-62';
+const APP_VERSION = '2026-07-13-63';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2004,7 +2004,8 @@ function renderWorkers(){
   const freeRecorders = freelancers.filter(f=>f.type==='recorder');
   const chip = w => `<div class="wchip ${w.active?'':'inactive'}">
       <span>${w.name}${w.email?` <span style="color:var(--muted);font-size:11px">(${w.email})</span>`:''} <span class="stat-count">${counts[w.id]||0} השבוע</span></span>
-      ${editMode?`<div style="display:flex;gap:6px">
+      ${editMode?`<div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:11px;color:var(--muted)">תקן: <input type="number" min="0" max="7" value="${w.weekly_quota==null?5:w.weekly_quota}" style="width:44px;padding:2px 4px" onchange="updateWorkerQuota('${w.id}',this.value)"></label>
         <button class="btn btn-sm" onclick="editWorker('${w.id}')">ערוך</button>
         <button class="btn btn-sm btn-danger" onclick="deleteWorker('${w.id}')">מחק</button>
         <button class="btn btn-sm" onclick="toggleWorkerActive('${w.id}',${!w.active})">${w.active?'השבת':'הפעל'}</button>
@@ -2091,6 +2092,12 @@ async function toggleWorkerActive(id, active){
   await sb.from('workers').update({active}).eq('id',id);
   const w = workers.find(x=>x.id===id); if(w) w.active=active;
   render();
+}
+async function updateWorkerQuota(id, value){
+  const quota = parseInt(value, 10);
+  if(isNaN(quota) || quota<0) return;
+  await sb.from('workers').update({weekly_quota:quota}).eq('id',id);
+  const w = workers.find(x=>x.id===id); if(w) w.weekly_quota = quota;
 }
 async function editWorker(id){
   const w = workers.find(x=>x.id===id);
@@ -2593,16 +2600,21 @@ function renderOverview(){
 
   let totalMissed = 0;
   const rowHtml = w=>{
-    let weekCount = 0;
-    const cells = DAYS.map(d=>{
-      const {items, isPaidDay} = workerDayStatus(w.id, d.i, weekDates[d.i]);
-      if(isPaidDay) weekCount++;
+    const quota = w.weekly_quota==null ? 5 : w.weekly_quota;
+    const dayResults = DAYS.map(d=>workerDayStatus(w.id, d.i, weekDates[d.i]));
+    const weekCount = dayResults.filter(r=>r.isPaidDay).length;
+    const underQuota = weekCount < quota;
+    const cells = DAYS.map((d,i)=>{
+      const {items, isPaidDay} = dayResults[i];
       const content = items.length ? items.join('<br>') : '';
-      return `<td class="day-cell overview-cell" style="font-size:10px">${content}</td>`;
+      const highlightEmpty = underQuota && !isPaidDay;
+      return `<td class="day-cell overview-cell" style="font-size:10px${highlightEmpty?';background:var(--red-bg)':''}">${content}</td>`;
     }).join('');
     const missed = weekCount===0;
     if(missed) totalMissed++;
-    return `<tr${missed?' style="background:var(--red-bg)"':''}><td class="row-label">${missed?'⚠️ ':''}${w.name}</td>${cells}<td class="row-label" style="text-align:center">${weekCount}</td></tr>`;
+    const namePrefix = missed ? '⚠️ ' : (underQuota ? '🔸 ' : '');
+    const totalStyle = underQuota ? 'color:var(--red);font-weight:700' : '';
+    return `<tr${missed?' style="background:var(--red-bg)"':''}><td class="row-label">${namePrefix}${w.name}</td>${cells}<td class="row-label" style="text-align:center;${totalStyle}">${weekCount} / ${quota}</td></tr>`;
   };
 
   const header = DAYS.map((d,i)=>{
@@ -2612,7 +2624,7 @@ function renderOverview(){
 
   const rows = activeWorkers.map(rowHtml).join('');
 
-  return `<div class="sub" style="margin-bottom:12px">מבט מרוכז — מי משובץ/מחלה/חופש בכל יום השבוע. סה"כ כולל גם ימי חופש/מחלה מאושרים (לא רק משמרות בפועל, כי גם עליהם מקבלים תשלום) - כוננות בלבד עדיין לא נספרת. שורה אדומה = אין אף משמרת, חופש, או מחלה השבוע.</div>
+  return `<div class="sub" style="margin-bottom:12px">מבט מרוכז — מי משובץ/מחלה/חופש בכל יום השבוע. סה"כ כולל גם ימי חופש/מחלה מאושרים (לא רק משמרות בפועל, כי גם עליהם מקבלים תשלום) - כוננות בלבד עדיין לא נספרת. עמודת "סה"כ" מציגה כמות מול התקן האישי (ניתן לעריכה בטאב "ניהול עובדים"). ימים ריקים אצל מי שמתחת לתקן מסומנים באדום. 🔸 = מתחת לתקן, ⚠️ = אין כלום השבוע.</div>
   <div class="table-scroll"><table class="master-table">
     <thead><tr><th class="row-label-col">עובד</th>${header}<th>סה"כ</th></tr></thead>
     <tbody>${rows}</tbody>
