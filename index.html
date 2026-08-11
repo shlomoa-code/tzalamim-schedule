@@ -302,7 +302,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-66';
+const APP_VERSION = '2026-07-13-67';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1239,12 +1239,33 @@ function renderMyShifts(){
     const id = selectedMyShiftsWorker;
     const entries = [];
     shifts.forEach(s=>{
-      if(s.worker_id===id) entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'צלם'});
-      if(s.recorder_id===id) entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'מקליט'});
+      const partnerLabel = (workerId, freelanceName) => {
+        if(freelanceName && freelanceName!=='?') return freelanceLabel(freelanceName);
+        return workerId ? (workerName(workerId)||'') : '';
+      };
+      if(s.worker_id===id){
+        const partner = partnerLabel(s.recorder_id, s.freelance_recorder_name);
+        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:''});
+      }
+      if(s.recorder_id===id){
+        const partner = partnerLabel(s.worker_id, s.freelance_name);
+        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:''});
+      }
     });
     magTeams.forEach(t=>{
-      if(t.photographer_id===id) entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:t.reporter_name?`כתב: ${t.reporter_name}`:'', time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם'});
-      if(t.recorder_id===id) entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:t.reporter_name?`כתב: ${t.reporter_name}`:'', time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט'});
+      const partnerLabelMag = (workerId, freelanceName) => {
+        if(freelanceName && freelanceName!=='?') return freelanceLabel(freelanceName);
+        return workerId ? (workerName(workerId)||'') : '';
+      };
+      const extra = [t.reporter_name?`כתב: ${t.reporter_name}`:'', t.topic?`נושא: ${t.topic}`:''].filter(Boolean).join(' · ');
+      if(t.photographer_id===id){
+        const partner = partnerLabelMag(t.recorder_id, t.freelance_recorder_name);
+        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:''});
+      }
+      if(t.recorder_id===id){
+        const partner = partnerLabelMag(t.photographer_id, t.freelance_photographer_name);
+        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:''});
+      }
     });
     entries.sort((a,b)=>a.day-b.day);
     if(!entries.length){
@@ -1255,6 +1276,7 @@ function renderMyShifts(){
         return `<div class="my-shift-card">
           <div class="my-shift-day">${DAYS[e.day].label} <span style="direction:ltr;color:var(--muted);font-weight:400;font-size:11px">${ds.slice(8,10)}/${ds.slice(5,7)}</span></div>
           <div class="my-shift-detail">${e.cat} — ${e.role}${e.label?' · '+e.label:''}${e.time?' · '+e.time:''}</div>
+          ${e.partner?`<div class="my-shift-detail" style="color:var(--muted);margin-top:2px">${e.partner}</div>`:''}
         </div>`;
       }).join('') + `</div>`;
     }
