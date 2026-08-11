@@ -302,7 +302,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-64';
+const APP_VERSION = '2026-07-13-65';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -3068,20 +3068,24 @@ async function screenshotTable(){
     render();
     await new Promise(r=>setTimeout(r, 60)); // לתת ל-DOM להתעדכן לתצוגה הנקייה
   }
-  const wrap = document.querySelector('.table-scroll');
-  if(!wrap){
+  const wrap = document.getElementById('content');
+  if(!wrap || !wrap.innerHTML.trim()){
     if(wasEdit){ editMode = true; render(); }
-    alert('לא נמצאה טבלה לצילום — ודא שאתה בטאב "סידור שבועי".');
+    alert('אין מה לצלם בטאב הזה.');
     return;
   }
   const btn = document.getElementById('screenshot-btn');
   const originalText = btn.textContent;
   btn.textContent = '📷 מכין תמונה...';
   btn.disabled = true;
-  wrap.classList.add('capture-mode');
+  // אם יש בתוך הטאב תיבת טבלה עם גלילה פנימית (כמו בסידור השבועי) - מרחיבים אותה זמנית כדי לצלם הכל, לא רק את מה שנראה בגלילה
+  const innerScrolls = wrap.querySelectorAll('.table-scroll');
+  innerScrolls.forEach(el=>el.classList.add('capture-mode'));
+  const currentTab = TABS.find(t=>t.id===activeTab);
+  const fileLabel = currentTab ? currentTab.label : 'תצוגה';
   try{
     const canvas = await html2canvas(wrap, {backgroundColor:'#ffffff', scale:2, useCORS:true});
-    wrap.classList.remove('capture-mode');
+    innerScrolls.forEach(el=>el.classList.remove('capture-mode'));
     if(wasEdit){ editMode = true; render(); }
     canvas.toBlob(async (blob)=>{
       let copied = false;
@@ -3096,7 +3100,7 @@ async function screenshotTable(){
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = 'סידור-שבועי.png';
+        a.href = url; a.download = `${fileLabel}.png`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(()=>URL.revokeObjectURL(url), 2000);
         alert('התמונה הורדה למכשיר — אפשר לשתף אותה מהגלריה/קבצים.');
@@ -3106,9 +3110,9 @@ async function screenshotTable(){
     });
   } catch(e){
     console.error(e);
-    wrap.classList.remove('capture-mode');
+    innerScrolls.forEach(el=>el.classList.remove('capture-mode'));
     if(wasEdit){ editMode = true; render(); }
-    alert('משהו השתבש בצילום הטבלה. נסה שוב.');
+    alert('משהו השתבש בצילום. נסה שוב.');
     const liveBtn = document.getElementById('screenshot-btn');
     if(liveBtn){ liveBtn.textContent = originalText; liveBtn.disabled = false; }
   }
