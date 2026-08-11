@@ -307,7 +307,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-69';
+const APP_VERSION = '2026-07-13-71';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -957,6 +957,8 @@ function render(){
   const el = document.getElementById('content');
   const excelBtn = document.getElementById('excel-export-btn');
   if(excelBtn) excelBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
+  const editBtn = document.getElementById('edit-toggle');
+  if(editBtn) editBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
   const prevScrollY = window.scrollY;
   const prevInnerScrolls = Array.from(el.querySelectorAll('.table-scroll')).map(e=>e.scrollTop);
 
@@ -1116,7 +1118,7 @@ function openTeamDetails(id){
     ${t.topic?`<div class="popup-opt">📝 נושא: ${t.topic}</div>`:''}
     ${t.area?`<div class="popup-opt">📍 אזור: ${t.area}</div>`:''}
     ${t.shoot_day?`<div class="popup-opt">🎬 יום צילום: ${t.shoot_day}</div>`:''}
-    ${t.start_time?`<div class="popup-opt">🕐 שעות: ${t.start_time}–${t.end_time}</div>`:''}
+    ${t.start_time?`<div class="popup-opt">🕐 שעות: <span dir="ltr">${t.start_time}–${t.end_time}</span></div>`:''}
   `;
   document.getElementById('popup-overlay').classList.add('show');
 }
@@ -1281,7 +1283,7 @@ function renderMyShifts(){
         const ds = dateForDay(e.day);
         return `<div class="my-shift-card ${e.colorClass||''}">
           <div class="my-shift-day">${DAYS[e.day].label} <span style="direction:ltr;color:var(--muted);font-weight:400;font-size:11px">${ds.slice(8,10)}/${ds.slice(5,7)}</span></div>
-          <div class="my-shift-detail">${e.cat} — ${e.role}${e.label?' · '+e.label:''}${e.time?' · '+e.time:''}</div>
+          <div class="my-shift-detail">${e.cat} — ${e.role}${e.label?' · '+e.label:''}${e.time?' · <span dir="ltr">'+e.time+'</span>':''}</div>
           ${e.partner?`<div class="my-shift-detail" style="color:var(--muted);margin-top:2px">${e.partner}</div>`:''}
         </div>`;
       }).join('') + `</div>`;
@@ -1687,7 +1689,7 @@ function renderMagazines(){
                <input placeholder="נושא הכתבה" value="${t.topic||''}" onchange="updateTeam('${t.id}','topic',this.value)">
                <input placeholder="אזור צילום" value="${t.area||''}" onchange="updateTeam('${t.id}','area',this.value)">
                <div class="shift-time"><input value="${t.start_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','start_time',this.value)">–<input value="${t.end_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','end_time',this.value)"></div>`
-            : `${t.reporter_name?`<div>כתב: ${t.reporter_name}</div>`:''}${t.topic?`<div>נושא: ${t.topic}</div>`:''}${t.area?`<div>אזור: ${t.area}</div>`:''}${t.start_time?`<div>${t.start_time}–${t.end_time}</div>`:''}`
+            : `${t.reporter_name?`<div>כתב: ${t.reporter_name}</div>`:''}${t.topic?`<div>נושא: ${t.topic}</div>`:''}${t.area?`<div>אזור: ${t.area}</div>`:''}${t.start_time?`<div dir="ltr" style="text-align:center">${t.start_time}–${t.end_time}</div>`:''}`
           }
         </div>`;
       });
