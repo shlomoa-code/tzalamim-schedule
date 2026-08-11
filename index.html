@@ -302,7 +302,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-65';
+const APP_VERSION = '2026-07-13-66';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1226,6 +1226,8 @@ function renderAbsenceSummary(){
 /* ---------- מצא את המשמרות שלי (תצוגה אישית לנייד) ---------- */
 function renderMyShifts(){
   const activeWorkers = workers.filter(w=>w.active).sort((a,b)=>a.name.localeCompare(b.name,'he'));
+  const myId = getCurrentWorkerId();
+  if(myId && !selectedMyShiftsWorker && !editMode) selectedMyShiftsWorker = myId;
   let html = `<div class="my-shifts-box">
     <div class="my-shifts-title">📱 מצא את המשמרות שלי</div>
     <select class="worker-select" onchange="selectedMyShiftsWorker=this.value;render()">
@@ -1485,6 +1487,7 @@ function renderMobileDays(sections){
   return html;
 }
 
+let showFullScheduleMobile = false;
 function renderMasterTable(){
   const sunday = getWeekStart(weekOffset);
   const canSeeDraft = editMode || accessRole==='manager';
@@ -1492,10 +1495,23 @@ function renderMasterTable(){
     return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}</div>
     <div class="empty-msg" style="padding:40px 16px;font-size:14px">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div>`;
   }
+
+  const weekLine = `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}${(!weekPublished && canSeeDraft)?' · <span style="color:#B45309;font-weight:700">🚧 טיוטה - עדיין לא פורסם לעובדים</span>':''}</div>`;
+
+  // בנייד, לעובד רגיל (לא מפיק/מנהל, ולא במצב עריכה) - מציגים כברירת מחדל רק את המשמרות שלו,
+  // עם כפתור לפתוח את הטבלה המלאה אם רוצים לראות הכל. מפיקים תמיד רואים את הטבלה המלאה.
+  const simplifiedMobile = isMobileView() && accessRole==='full' && !editMode;
+  if(simplifiedMobile && !showFullScheduleMobile){
+    return `${weekLine}
+    ${renderMyShifts()}
+    <button class="btn" style="width:100%;margin-top:8px" onclick="showFullScheduleMobile=true; render()">📋 הצג את כל הסידור השבועי</button>`;
+  }
+
   const sections = buildSections();
   const body = renderDesktopTable(sections);
 
-  return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}${(!weekPublished && canSeeDraft)?' · <span style="color:#B45309;font-weight:700">🚧 טיוטה - עדיין לא פורסם לעובדים</span>':''}</div>
+  return `${weekLine}
+  ${simplifiedMobile ? `<button class="btn" style="width:100%;margin-bottom:10px" onclick="showFullScheduleMobile=false; render()">📱 חזרה למשמרות שלי בלבד</button>` : ''}
   ${renderMyShifts()}
   ${body}
   ${accessRole==='producer' ? '' : renderAbsenceSummary()}`;
