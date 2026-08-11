@@ -124,9 +124,14 @@ h1{font-size:19px;font-weight:600}
 .my-shifts-box{background:#fff;border:2px solid var(--blue);border-radius:12px;padding:14px;margin-bottom:16px}
 .my-shifts-title{font-size:14px;font-weight:700;margin-bottom:10px;color:var(--blue)}
 .my-shifts-list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
-.my-shift-card{background:var(--blue-bg);border-radius:8px;padding:9px 12px}
-.my-shift-day{font-weight:700;font-size:13px;margin-bottom:3px}
-.my-shift-detail{font-size:12px;color:var(--ink)}
+.my-shift-card{background:var(--blue-bg);border-radius:8px;padding:10px 13px}
+.my-shift-day{font-weight:700;font-size:15px;margin-bottom:4px}
+.my-shift-detail{font-size:14px;color:var(--ink)}
+.my-shift-card.mag-mahadura{background:#FDF1E4}
+.my-shift-card.mag-rikuz{background:#EEF6EA}
+.my-shift-card.mag-friday{background:#FBEEF3}
+.my-shift-card.mag-saturday{background:#EEEEF9}
+.my-shift-card.oncall{background:#EAF6FB}
 
 @media(max-width:700px){
   .table-scroll{overflow-x:auto;overflow-y:auto;max-height:68vh;-webkit-overflow-scrolling:touch;border-radius:8px}
@@ -302,7 +307,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-67';
+const APP_VERSION = '2026-07-13-69';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1245,11 +1250,11 @@ function renderMyShifts(){
       };
       if(s.worker_id===id){
         const partner = partnerLabel(s.recorder_id, s.freelance_recorder_name);
-        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:''});
+        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
       }
       if(s.recorder_id===id){
         const partner = partnerLabel(s.worker_id, s.freelance_name);
-        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:''});
+        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
       }
     });
     magTeams.forEach(t=>{
@@ -1258,13 +1263,14 @@ function renderMyShifts(){
         return workerId ? (workerName(workerId)||'') : '';
       };
       const extra = [t.reporter_name?`כתב: ${t.reporter_name}`:'', t.topic?`נושא: ${t.topic}`:''].filter(Boolean).join(' · ');
+      const magColorClass = t.magazine ? `mag-${t.magazine}` : '';
       if(t.photographer_id===id){
         const partner = partnerLabelMag(t.recorder_id, t.freelance_recorder_name);
-        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:''});
+        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: magColorClass});
       }
       if(t.recorder_id===id){
         const partner = partnerLabelMag(t.photographer_id, t.freelance_photographer_name);
-        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:''});
+        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: magColorClass});
       }
     });
     entries.sort((a,b)=>a.day-b.day);
@@ -1273,7 +1279,7 @@ function renderMyShifts(){
     } else {
       html += `<div class="my-shifts-list">` + entries.map(e=>{
         const ds = dateForDay(e.day);
-        return `<div class="my-shift-card">
+        return `<div class="my-shift-card ${e.colorClass||''}">
           <div class="my-shift-day">${DAYS[e.day].label} <span style="direction:ltr;color:var(--muted);font-weight:400;font-size:11px">${ds.slice(8,10)}/${ds.slice(5,7)}</span></div>
           <div class="my-shift-detail">${e.cat} — ${e.role}${e.label?' · '+e.label:''}${e.time?' · '+e.time:''}</div>
           ${e.partner?`<div class="my-shift-detail" style="color:var(--muted);margin-top:2px">${e.partner}</div>`:''}
