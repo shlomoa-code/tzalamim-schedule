@@ -307,7 +307,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-71';
+const APP_VERSION = '2026-07-13-72';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2697,7 +2697,12 @@ function renderDuty(){
   // בדיקת חוסרים: כל שישי/שבת בטווח התאריכים של הלוח שאין לו רשומה בכלל, או שיש רשומה אבל בלי אף שיבוץ
   const gapWarnings = [];
   if(dutyRoster.length){
-    const allDates = dutyRoster.map(d=>d.duty_date).sort();
+    const sanityMin = '2020-01-01', sanityMax = '2035-01-01';
+    const oddDates = dutyRoster.filter(d=>d.duty_date < sanityMin || d.duty_date > sanityMax);
+    if(oddDates.length){
+      gapWarnings.push(`⚠️ נמצאו ${oddDates.length} תאריכים לא הגיוניים בלוח (למשל שנה שגויה): ${oddDates.map(d=>d.duty_date).join(', ')} - כדאי לתקן אותם ידנית, הבדיקה למטה מתעלמת מהם`);
+    }
+    const allDates = dutyRoster.map(d=>d.duty_date).filter(d=>d>=sanityMin && d<=sanityMax).sort();
     const minDate = allDates[0], maxDate = allDates[allDates.length-1];
     const dateSet = new Set(allDates);
     const cur = new Date(minDate);
