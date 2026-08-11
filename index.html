@@ -286,6 +286,7 @@ h1{font-size:19px;font-weight:600}
       </div>
       <button class="btn" id="screenshot-btn" style="display:none" onclick="screenshotTable()">📷 צלם טבלה</button>
       <button class="btn" id="excel-export-btn" style="display:none" onclick="exportScheduleToExcel()">📥 ייצוא לאקסל</button>
+      <button class="btn" id="backup-export-btn" style="display:none" onclick="exportFullBackup()">💾 גיבוי מלא</button>
       <button class="btn" id="import-duty-btn" style="display:none" onclick="importDutyToSchedule()">📥 ייבוא מלוח תורנויות</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
       <button class="btn" id="shoot-report-btn" style="display:none" onclick="showShootDayReport()">🎬 דוח ימי צילום</button>
@@ -307,7 +308,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-72';
+const APP_VERSION = '2026-07-13-73';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -957,6 +958,8 @@ function render(){
   const el = document.getElementById('content');
   const excelBtn = document.getElementById('excel-export-btn');
   if(excelBtn) excelBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
+  const backupBtn = document.getElementById('backup-export-btn');
+  if(backupBtn) backupBtn.style.display = accessRole==='manager' ? '' : 'none';
   const editBtn = document.getElementById('edit-toggle');
   if(editBtn) editBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
   const prevScrollY = window.scrollY;
@@ -1781,6 +1784,32 @@ function renderTopline(){
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 let freelanceLogData = null;
 let freelanceRoleTotals = null;
+async function exportFullBackup(){
+  const btn = document.getElementById('backup-export-btn');
+  const originalText = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = '💾 מכין גיבוי...'; btn.disabled = true; }
+  try{
+    const tables = ['workers','shifts','magazine_teams','duty_roster','vacation_requests','viewers','freelancers','week_publish','topline_log','topline_notes','mivtzaim_notes','constraints'];
+    const backup = {exported_at: new Date().toISOString(), app: 'tzalamim-schedule'};
+    for(const t of tables){
+      backup[t] = await fetchAllRows(t, '*');
+    }
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateLabel = dateStr(new Date());
+    a.href = url; a.download = `גיבוי-סידור-צלמים-${dateLabel}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    alert('הגיבוי הורד למחשב. שמור אותו במקום קבוע (למשל Google Drive) - זה מכיל את כל הנתונים החשובים נכון לרגע זה.');
+  }catch(e){
+    console.error('backup export failed', e);
+    alert('משהו השתבש בגיבוי. נסה שוב.');
+  }finally{
+    if(btn){ btn.textContent = originalText; btn.disabled = false; }
+  }
+}
 async function fetchAllRows(table, columns){
   let all = [];
   let from = 0;
