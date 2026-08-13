@@ -133,6 +133,56 @@ h1{font-size:19px;font-weight:600}
 .my-shift-card.mag-saturday{background:#EEEEF9}
 .my-shift-card.oncall{background:#EAF6FB}
 
+/* ===================== מצב אפליקציית נייד (רק לעובדים רגילים בנייד) ===================== */
+#mobile-app{display:none;padding-bottom:78px;max-width:480px;margin:0 auto}
+.ma-header{background:#12141c;color:#fff;border-radius:0 0 22px 22px;padding:18px 18px 22px;margin:-16px -16px 16px}
+.ma-header-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.ma-avatar{width:38px;height:38px;border-radius:50%;background:#fff;color:#12141c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.ma-greeting{font-size:20px;font-weight:700}
+.ma-subdate{font-size:12px;color:#9CA3AF;margin-top:2px}
+.ma-hero{background:#1c1f2b;border-radius:16px;padding:16px}
+.ma-hero-label{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#9CA3AF;margin-bottom:8px}
+.ma-hero-today{color:#F87171;font-weight:700;display:flex;align-items:center;gap:5px}
+.ma-hero-today::before{content:'';width:7px;height:7px;border-radius:50%;background:#F87171;display:inline-block}
+.ma-hero-time{font-size:34px;font-weight:800;direction:ltr;text-align:center;margin:4px 0}
+.ma-hero-day{font-size:13px;color:#D1D5DB;text-align:center;margin-bottom:10px}
+.ma-hero-divider{border-top:1px solid #2E3140;margin:10px 0}
+.ma-hero-region{font-size:14px;font-weight:700}
+.ma-hero-sub{font-size:12px;color:#9CA3AF;margin-top:2px}
+.ma-hero-partner{margin-top:10px;background:#2A2D3A;border-radius:8px;padding:8px 10px;font-size:12px;text-align:center}
+.ma-week-nav{display:flex;gap:8px;margin-bottom:14px}
+.ma-week-btn{flex:1;text-align:center;padding:10px;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink)}
+.ma-week-btn.active{background:#12141c;color:#fff;border-color:#12141c}
+.ma-section-title{font-size:13px;font-weight:700;color:var(--muted);margin:16px 0 8px}
+.ma-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;border-right:4px solid var(--blue);box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.ma-card.today{border-right-color:#F87171}
+.ma-card-top{display:flex;justify-content:space-between;align-items:baseline}
+.ma-card-date{font-size:12px;color:var(--muted);font-weight:600}
+.ma-card-day{font-size:16px;font-weight:700}
+.ma-card-time{font-size:20px;font-weight:800;direction:ltr;margin:4px 0 2px}
+.ma-card-region{font-size:13px;color:var(--muted)}
+.ma-card-partner{font-size:12px;color:var(--muted);margin-top:4px}
+.ma-empty{text-align:center;color:var(--muted);font-size:13px;padding:30px 10px}
+.ma-toggle-row{display:flex;gap:8px;background:#F0F0EE;border-radius:10px;padding:4px;margin-bottom:14px}
+.ma-toggle-btn{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.ma-toggle-btn.active{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,0.08)}
+.ma-daypills{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px}
+.ma-daypill{flex-shrink:0;width:46px;text-align:center;padding:8px 0;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+.ma-daypill.active{background:#12141c;color:#fff;border-color:#12141c}
+.ma-team-group-title{font-size:12px;color:var(--muted);font-weight:700;margin:14px 0 6px}
+.ma-team-card{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.ma-team-time{direction:ltr;font-weight:700;font-size:14px}
+.ma-team-name{font-size:14px;font-weight:600}
+.ma-badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700}
+.ma-badge.approved{background:var(--green-bg);color:var(--green)}
+.ma-badge.pending{background:var(--amber-bg);color:var(--amber)}
+.ma-badge.rejected{background:var(--red-bg);color:var(--red)}
+.ma-newreq-btn{width:100%;background:#12141c;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;margin-bottom:16px}
+.ma-bottomnav{position:fixed;bottom:0;right:0;left:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:50;max-width:480px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+.ma-navbtn{flex:1;text-align:center;padding:9px 0 8px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
+.ma-navbtn .ma-navicon{font-size:20px;display:block;margin-bottom:2px}
+.ma-navbtn.active{color:#12141c}
+
 @media(max-width:700px){
   .table-scroll{overflow-x:auto;overflow-y:auto;max-height:68vh;-webkit-overflow-scrolling:touch;border-radius:8px}
   .master-table{table-layout:auto}
@@ -297,6 +347,7 @@ h1{font-size:19px;font-weight:600}
 
   <div class="tabs" id="tabs"></div>
   <div id="content"></div>
+  <div id="mobile-app"></div>
 </div>
 
 <div class="popup-overlay" id="popup-overlay" onclick="if(event.target===this)closePopup()">
@@ -308,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-73';
+const APP_VERSION = '2026-07-13-74';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -941,10 +992,14 @@ function updatePublishBtn(){
 function changeWeek(delta){ weekOffset += delta; loadWeek(); }
 
 /* ===================== ניווט טאבים ===================== */
+const EXPANDED_PRODUCER_EMAILS = ['ettya@kan.org.il']; // אתי אטיאס - צפייה מורחבת (חופשות/אילוצים/תורנות), עדיין בלי עריכה
 function buildTabs(){
   const el = document.getElementById('tabs');
+  const isExpandedProducer = accessRole==='producer' && EXPANDED_PRODUCER_EMAILS.includes((localStorage.getItem('team_access_email')||'').trim().toLowerCase());
   const visibleTabs = accessRole==='producer'
-    ? TABS.filter(t=> t.kind==='fullschedule')
+    ? (isExpandedProducer
+        ? TABS.filter(t=> ['fullschedule','calendar','constraints','duty'].includes(t.kind))
+        : TABS.filter(t=> t.kind==='fullschedule'))
     : TABS.filter(t=> {
         if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager';
         return (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode;
@@ -954,7 +1009,22 @@ function buildTabs(){
 function switchTab(id){ activeTab = id; render(); }
 
 /* ===================== רינדור ראשי ===================== */
+function useMobileApp(){
+  return isMobileView() && accessRole==='full' && !editMode;
+}
 function render(){
+  if(useMobileApp()){
+    document.querySelector('.topbar').style.display = 'none';
+    document.getElementById('tabs').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+    renderMobileApp();
+    return;
+  }
+  document.querySelector('.topbar').style.display = '';
+  document.getElementById('tabs').style.display = '';
+  document.getElementById('content').style.display = '';
+  document.getElementById('mobile-app').style.display = 'none';
+
   const el = document.getElementById('content');
   const excelBtn = document.getElementById('excel-export-btn');
   if(excelBtn) excelBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
@@ -1234,6 +1304,41 @@ function renderAbsenceSummary(){
 }
 
 /* ---------- מצא את המשמרות שלי (תצוגה אישית לנייד) ---------- */
+function getMyShiftEntries(id){
+  const entries = [];
+  shifts.forEach(s=>{
+    const partnerLabel = (workerId, freelanceName) => {
+      if(freelanceName && freelanceName!=='?') return freelanceLabel(freelanceName);
+      return workerId ? (workerName(workerId)||'') : '';
+    };
+    if(s.worker_id===id){
+      const partner = partnerLabel(s.recorder_id, s.freelance_recorder_name);
+      entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, start_time:s.start_time, end_time:s.end_time, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
+    }
+    if(s.recorder_id===id){
+      const partner = partnerLabel(s.worker_id, s.freelance_name);
+      entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, start_time:s.start_time, end_time:s.end_time, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
+    }
+  });
+  magTeams.forEach(t=>{
+    const partnerLabelMag = (workerId, freelanceName) => {
+      if(freelanceName && freelanceName!=='?') return freelanceLabel(freelanceName);
+      return workerId ? (workerName(workerId)||'') : '';
+    };
+    const extra = [t.reporter_name?`כתב: ${t.reporter_name}`:'', t.topic?`נושא: ${t.topic}`:''].filter(Boolean).join(' · ');
+    const magColorClass = t.magazine ? `mag-${t.magazine}` : '';
+    if(t.photographer_id===id){
+      const partner = partnerLabelMag(t.recorder_id, t.freelance_recorder_name);
+      entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, start_time:t.start_time, end_time:t.end_time, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: magColorClass});
+    }
+    if(t.recorder_id===id){
+      const partner = partnerLabelMag(t.photographer_id, t.freelance_photographer_name);
+      entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, start_time:t.start_time, end_time:t.end_time, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: magColorClass});
+    }
+  });
+  entries.sort((a,b)=>a.day-b.day);
+  return entries;
+}
 function renderMyShifts(){
   const activeWorkers = workers.filter(w=>w.active).sort((a,b)=>a.name.localeCompare(b.name,'he'));
   const myId = getCurrentWorkerId();
@@ -1246,39 +1351,7 @@ function renderMyShifts(){
     </select>`;
 
   if(selectedMyShiftsWorker){
-    const id = selectedMyShiftsWorker;
-    const entries = [];
-    shifts.forEach(s=>{
-      const partnerLabel = (workerId, freelanceName) => {
-        if(freelanceName && freelanceName!=='?') return freelanceLabel(freelanceName);
-        return workerId ? (workerName(workerId)||'') : '';
-      };
-      if(s.worker_id===id){
-        const partner = partnerLabel(s.recorder_id, s.freelance_recorder_name);
-        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
-      }
-      if(s.recorder_id===id){
-        const partner = partnerLabel(s.worker_id, s.freelance_name);
-        entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
-      }
-    });
-    magTeams.forEach(t=>{
-      const partnerLabelMag = (workerId, freelanceName) => {
-        if(freelanceName && freelanceName!=='?') return freelanceLabel(freelanceName);
-        return workerId ? (workerName(workerId)||'') : '';
-      };
-      const extra = [t.reporter_name?`כתב: ${t.reporter_name}`:'', t.topic?`נושא: ${t.topic}`:''].filter(Boolean).join(' · ');
-      const magColorClass = t.magazine ? `mag-${t.magazine}` : '';
-      if(t.photographer_id===id){
-        const partner = partnerLabelMag(t.recorder_id, t.freelance_recorder_name);
-        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: magColorClass});
-      }
-      if(t.recorder_id===id){
-        const partner = partnerLabelMag(t.photographer_id, t.freelance_photographer_name);
-        entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: magColorClass});
-      }
-    });
-    entries.sort((a,b)=>a.day-b.day);
+    const entries = getMyShiftEntries(selectedMyShiftsWorker);
     if(!entries.length){
       html += `<div class="empty-msg">אין לך שיבוצים השבוע</div>`;
     } else {
@@ -1294,6 +1367,218 @@ function renderMyShifts(){
   }
   html += `</div>`;
   return html;
+}
+
+/* ===================== מסכי אפליקציית נייד (עובדים רגילים, נייד בלבד) ===================== */
+let mobileAppTab = 'home';
+let maTeamDay = null;
+function renderMobileApp(){
+  const myId = getCurrentWorkerId();
+  const wrap = document.getElementById('mobile-app');
+  wrap.style.display = 'block';
+  let screenHtml = '';
+  if(mobileAppTab==='home') screenHtml = renderMaHome(myId);
+  else if(mobileAppTab==='team') screenHtml = renderMaTeam();
+  else if(mobileAppTab==='requests') screenHtml = renderMaRequests(myId);
+  else if(mobileAppTab==='vacations') screenHtml = renderMaVacations();
+  wrap.innerHTML = screenHtml + renderMaBottomNav();
+}
+function renderMaBottomNav(){
+  const items = [
+    {id:'home', icon:'🏠', label:'שלי'},
+    {id:'team', icon:'👥', label:'הצוות'},
+    {id:'requests', icon:'✏️', label:'בקשות'},
+    {id:'vacations', icon:'📅', label:'חופשות'}
+  ];
+  return `<div class="ma-bottomnav">${items.map(it=>`
+    <div class="ma-navbtn ${mobileAppTab===it.id?'active':''}" onclick="mobileAppTab='${it.id}';render()">
+      <span class="ma-navicon">${it.icon}</span>${it.label}
+    </div>`).join('')}</div>`;
+}
+function maGreeting(){
+  const h = new Date().getHours();
+  if(h < 5) return 'לילה טוב';
+  if(h < 12) return 'בוקר טוב';
+  if(h < 18) return 'צהריים טובים';
+  return 'ערב טוב';
+}
+function renderMaHeader(myId, subtitleHtml){
+  const w = workers.find(x=>x.id===myId);
+  const firstName = w ? w.name.split(' ')[0] : '';
+  const initials = w ? w.name.split(' ').map(p=>p[0]).slice(0,2).join('') : '';
+  return `<div class="ma-header">
+    <div class="ma-header-top">
+      <div>
+        <div class="ma-greeting">${maGreeting()}${firstName?', '+firstName:''}</div>
+        <div class="ma-subdate">${DAYS[new Date().getDay()].label} · ${new Date().getDate()} ב${HEB_MONTHS[new Date().getMonth()]}</div>
+      </div>
+      <div class="ma-avatar">${initials||'👤'}</div>
+    </div>
+    ${subtitleHtml||''}
+  </div>`;
+}
+function renderMaHome(myId){
+  if(!myId){
+    return renderMaHeader(null,'') + `<div class="ma-empty">לא זוהתה זהות עובד למייל שלך. פנה למנהל.</div>`;
+  }
+  const entries = getMyShiftEntries(myId);
+  const todayIdx = new Date().getDay();
+  const nowMinutes = new Date().getHours()*60 + new Date().getMinutes();
+  let nextEntry = null;
+  const sorted = [...entries].sort((a,b)=>a.day-b.day);
+  for(const e of sorted){
+    if(e.day > todayIdx){ nextEntry = e; break; }
+    if(e.day === todayIdx){
+      const endM = timeToMinutes(e.end_time);
+      if(endM < 0 || endM > nowMinutes){ nextEntry = e; break; }
+    }
+  }
+  if(!nextEntry && sorted.length) nextEntry = sorted[0];
+
+  let heroHtml;
+  if(nextEntry){
+    const isToday = nextEntry.day === todayIdx;
+    heroHtml = `<div class="ma-hero">
+      <div class="ma-hero-label">
+        <span>המשמרת הבאה</span>
+        ${isToday?`<span class="ma-hero-today">היום</span>`:''}
+      </div>
+      <div class="ma-hero-time">${nextEntry.time||''}</div>
+      <div class="ma-hero-day">${DAYS[nextEntry.day].label} · ${dateForDay(nextEntry.day).slice(8,10)}/${dateForDay(nextEntry.day).slice(5,7)}</div>
+      <div class="ma-hero-divider"></div>
+      <div class="ma-hero-region">${nextEntry.cat}${nextEntry.label?' · '+nextEntry.label:''}</div>
+      ${nextEntry.partner?`<div class="ma-hero-partner">${nextEntry.partner}</div>`:''}
+    </div>`;
+  } else {
+    heroHtml = `<div class="ma-hero"><div class="ma-empty" style="color:#9CA3AF">אין לך משמרות בשבוע הזה</div></div>`;
+  }
+
+  const weekNav = `<div class="ma-week-nav">
+    <div class="ma-week-btn ${weekOffset===1?'active':''}" onclick="weekOffset=1;loadWeek()">שבוע הבא</div>
+    <div class="ma-week-btn ${weekOffset===0?'active':''}" onclick="weekOffset=0;loadWeek()">היום</div>
+    <div class="ma-week-btn ${weekOffset===-1?'active':''}" onclick="weekOffset=-1;loadWeek()">שבוע קודם</div>
+  </div>`;
+
+  const listHtml = entries.length ? entries.map(e=>{
+    const isToday = e.day===todayIdx;
+    return `<div class="ma-card ${isToday?'today':''}">
+      <div class="ma-card-top">
+        <span class="ma-card-day">${DAYS[e.day].label}</span>
+        <span class="ma-card-date">${dateForDay(e.day).slice(8,10)}/${dateForDay(e.day).slice(5,7)}</span>
+      </div>
+      <div class="ma-card-time">${e.time||''}</div>
+      <div class="ma-card-region">${e.cat}${e.label?' · '+e.label:''}</div>
+      ${e.partner?`<div class="ma-card-partner">${e.partner}</div>`:''}
+    </div>`;
+  }).join('') : `<div class="ma-empty">אין משמרות השבוע</div>`;
+
+  return renderMaHeader(myId, heroHtml) + `<div style="padding:0 4px">
+    ${weekNav}
+    <div class="ma-section-title">השבוע שלי</div>
+    ${listHtml}
+  </div>`;
+}
+function renderMaTeam(){
+  const activeDayIdx = maTeamDay==null ? new Date().getDay() : maTeamDay;
+  const dayPills = DAYS.map(d=>`<div class="ma-daypill ${d.i===activeDayIdx?'active':''}" onclick="maTeamDay=${d.i};render()">${d.label}<br>${dateForDay(d.i).slice(8,10)}</div>`).join('');
+
+  const regionOrder = [
+    {key:'ta', name:'ת"א'}, {key:'jerusalem', name:'ירושלים'}, {key:'south', name:'דרום'}, {key:'haifa', name:'חיפה'}
+  ];
+  let body = '';
+  regionOrder.forEach(r=>{
+    const dayShifts = sortShiftsChrono(shifts.filter(s=>s.region===r.key && s.day_of_week===activeDayIdx));
+    if(!dayShifts.length) return;
+    body += `<div class="ma-team-group-title">${r.name} · ${dayShifts.length} משמרות</div>`;
+    dayShifts.forEach(s=>{
+      const name = (s.freelance_name && s.freelance_name!=='?') ? freelanceLabel(s.freelance_name) : (workerName(s.worker_id)||'—');
+      const rname = (s.freelance_recorder_name && s.freelance_recorder_name!=='?') ? s.freelance_recorder_name : workerName(s.recorder_id);
+      body += `<div class="ma-team-card">
+        <div><div class="ma-team-name">${name}${rname?' · '+rname:''}</div><div class="sub" style="font-size:11px">${s.label||''}</div></div>
+        <div class="ma-team-time">${s.start_time}–${s.end_time}</div>
+      </div>`;
+    });
+  });
+  Object.keys(MAGAZINES).forEach(key=>{
+    const teams = magTeams.filter(t=>t.magazine===key && t.day_of_week===activeDayIdx).sort((a,b)=>a.row_order-b.row_order);
+    if(!teams.length) return;
+    body += `<div class="ma-team-group-title">${MAGAZINES[key].name}</div>`;
+    teams.forEach(t=>{
+      const pname = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? freelanceLabel(t.freelance_photographer_name) : (workerName(t.photographer_id)||'—');
+      body += `<div class="ma-team-card">
+        <div><div class="ma-team-name">${pname}</div><div class="sub" style="font-size:11px">${t.reporter_name||''}</div></div>
+        <div class="ma-team-time">${t.start_time||''}${t.end_time?'–'+t.end_time:''}</div>
+      </div>`;
+    });
+  });
+  if(!body) body = `<div class="ma-empty">אין שיבוצים ליום הזה</div>`;
+
+  return `<div class="ma-header" style="border-radius:0 0 18px 18px;padding:16px 16px 14px">
+    <div class="ma-greeting" style="font-size:18px">הצוות</div>
+    <div class="ma-subdate">${fmtWeekLabel(getWeekStart(weekOffset))}</div>
+  </div>
+  <div style="padding:0 4px">
+    <div class="ma-daypills">${dayPills}</div>
+    ${body}
+  </div>`;
+}
+function renderMaRequests(myId){
+  const myVacations = vacationRequests.filter(v=>v.worker_id===myId).sort((a,b)=>b.created_at.localeCompare(a.created_at));
+
+  const statusBadge = (status) => {
+    const map = {approved:'אושר', pending:'ממתין', rejected:'נדחה'};
+    return `<span class="ma-badge ${status}">${map[status]||status}</span>`;
+  };
+
+  const vacCards = myVacations.map(v=>`
+    <div class="ma-card" style="border-right-color:${v.status==='approved'?'#0F6E56':v.status==='rejected'?'#A32D2D':'#C47A00'}">
+      <div class="ma-card-top">
+        <span class="ma-card-day">${v.req_type==='sick'?'🤒 מחלה':'🏖️ חופשה'}</span>
+        ${statusBadge(v.status)}
+      </div>
+      <div class="ma-card-region" style="margin-top:6px">${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''}</div>
+      ${v.note?`<div class="ma-card-partner">${v.note}</div>`:''}
+    </div>`).join('');
+
+  const body = vacCards || `<div class="ma-empty">אין לך בקשות עדיין</div>`;
+
+  return renderMaHeader(myId, '') + `<div style="padding:0 4px">
+    <button class="ma-newreq-btn" onclick="mobileAppTab='vacations';render()">➕ בקשה חדשה</button>
+    <div class="ma-section-title">הבקשות שלי</div>
+    ${body}
+  </div>`;
+}
+function renderMaVacations(){
+  const myId = getCurrentWorkerId();
+  return renderMaHeader(myId, '') + `<div style="padding:0 4px">
+    <div class="ma-section-title">בקשת חופשה חדשה</div>
+    <div class="ma-card" style="border-right-color:#12141c">
+      <div class="field"><label>מתאריך</label><input type="date" id="ma-vac-from" style="width:100%;margin-top:4px"></div>
+      <div class="field" style="margin-top:8px"><label>עד תאריך</label><input type="date" id="ma-vac-to" style="width:100%;margin-top:4px"></div>
+      <div class="field" style="margin-top:8px"><label>הערה (לא חובה)</label><input type="text" id="ma-vac-note" placeholder="סיבה..." style="width:100%;margin-top:4px"></div>
+      <button class="ma-newreq-btn" style="margin-top:12px;margin-bottom:0" onclick="submitMaVacation()">שלח בקשה</button>
+    </div>
+    <div class="ma-section-title">חופשות מאושרות של הצוות</div>
+    ${vacationRequests.filter(v=>v.status==='approved').sort((a,b)=>a.from_date.localeCompare(b.from_date)).map(v=>`
+      <div class="ma-team-card">
+        <div class="ma-team-name">${workerName(v.worker_id)||'—'}</div>
+        <div class="sub" style="font-size:12px">${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''}</div>
+      </div>`).join('') || `<div class="ma-empty">אין חופשות מאושרות כרגע</div>`}
+  </div>`;
+}
+async function submitMaVacation(){
+  const myId = getCurrentWorkerId();
+  if(!myId){ alert('לא זוהתה זהות עובד'); return; }
+  const from_date = document.getElementById('ma-vac-from').value;
+  const to_date = document.getElementById('ma-vac-to').value || from_date;
+  const note = document.getElementById('ma-vac-note').value;
+  if(!from_date){ alert('נא לבחור תאריך'); return; }
+  const {data, error} = await sb.from('vacation_requests').insert({worker_id:myId, from_date, to_date, note, status:'pending', req_type:'vacation'}).select();
+  if(error){ alert('שגיאה בשמירת הבקשה'); return; }
+  if(data) vacationRequests.push(data[0]);
+  sendVacationRequestEmail(workerName(myId), from_date, to_date, note);
+  mobileAppTab = 'requests';
+  render();
 }
 
 function isMobileView(){ return window.innerWidth <= 700; }
@@ -2341,8 +2626,13 @@ function renderConstraints(){
     <button class="btn btn-sm" onclick="changeConstraintsWeek(-1)">◀</button>
     <span class="week-label" style="margin:0 8px">${fmtWeekLabel(nextSunday)}</span>
     <button class="btn btn-sm" onclick="changeConstraintsWeek(1)">▶</button>
-  </div>
-  <div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
+  </div>`;
+  if(accessRole==='producer'){
+    html += `<div class="sub" style="margin-bottom:10px">תצוגת צפייה - סיכום האילוצים של הצוות לשבוע הנבחר.</div>`;
+    html += renderConstraintsOverview();
+    return html;
+  }
+  html += `<div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
   const windowOpen = editMode || isConstraintsWindowOpenForWeek(dateStr(nextSunday));
   if(!windowOpen){
     html += `<div style="background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px">🔒 ההגשה לשבוע הזה ננעלה (המועד היה עד יום חמישי 11:00). אפשר לצפות בלבד, ולסמן עבור שבועות מאוחרים יותר.</div>`;
