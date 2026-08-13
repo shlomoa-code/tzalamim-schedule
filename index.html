@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-74';
+const APP_VERSION = '2026-07-13-75';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1421,6 +1421,16 @@ function renderMaHome(myId){
   if(!myId){
     return renderMaHeader(null,'') + `<div class="ma-empty">לא זוהתה זהות עובד למייל שלך. פנה למנהל.</div>`;
   }
+  if(!weekPublished){
+    return renderMaHeader(myId,'') + `<div style="padding:0 4px">
+      <div class="ma-week-nav">
+        <div class="ma-week-btn ${weekOffset===1?'active':''}" onclick="weekOffset=1;loadWeek()">שבוע הבא</div>
+        <div class="ma-week-btn ${weekOffset===0?'active':''}" onclick="weekOffset=0;loadWeek()">היום</div>
+        <div class="ma-week-btn ${weekOffset===-1?'active':''}" onclick="weekOffset=-1;loadWeek()">שבוע קודם</div>
+      </div>
+      <div class="ma-empty">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div>
+    </div>`;
+  }
   const entries = getMyShiftEntries(myId);
   const todayIdx = new Date().getDay();
   const nowMinutes = new Date().getHours()*60 + new Date().getMinutes();
@@ -1479,6 +1489,13 @@ function renderMaHome(myId){
   </div>`;
 }
 function renderMaTeam(){
+  if(!weekPublished){
+    return `<div class="ma-header" style="border-radius:0 0 18px 18px;padding:16px 16px 14px">
+      <div class="ma-greeting" style="font-size:18px">הצוות</div>
+      <div class="ma-subdate">${fmtWeekLabel(getWeekStart(weekOffset))}</div>
+    </div>
+    <div style="padding:0 4px"><div class="ma-empty">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div></div>`;
+  }
   const activeDayIdx = maTeamDay==null ? new Date().getDay() : maTeamDay;
   const dayPills = DAYS.map(d=>`<div class="ma-daypill ${d.i===activeDayIdx?'active':''}" onclick="maTeamDay=${d.i};render()">${d.label}<br>${dateForDay(d.i).slice(8,10)}</div>`).join('');
 
