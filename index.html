@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-75';
+const APP_VERSION = '2026-07-13-76';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1540,6 +1540,21 @@ function renderMaTeam(){
   </div>`;
 }
 function renderMaRequests(myId){
+  if(myId) selectedConstraintWorker = myId;
+  const nextSunday = getWeekStart(constraintsWeekOffset);
+  const windowOpen = isConstraintsWindowOpenForWeek(dateStr(nextSunday));
+  const constraintPills = DAYS.map(day=>{
+    const d = new Date(nextSunday); d.setDate(d.getDate()+day.i);
+    const ds = dateStr(d);
+    const row = constraintsData.find(c=>c.worker_id===myId && c.day_of_week===day.i);
+    const status = row ? (row.status||'available') : 'available';
+    const note = row ? (row.note||'') : '';
+    const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
+    return `<div class="constraint-pill ${st.cls}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.6"'}>
+      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}
+    </div>`;
+  }).join('');
+
   const myVacations = vacationRequests.filter(v=>v.worker_id===myId).sort((a,b)=>b.created_at.localeCompare(a.created_at));
 
   const statusBadge = (status) => {
@@ -1560,8 +1575,16 @@ function renderMaRequests(myId){
   const body = vacCards || `<div class="ma-empty">אין לך בקשות עדיין</div>`;
 
   return renderMaHeader(myId, '') + `<div style="padding:0 4px">
-    <button class="ma-newreq-btn" onclick="mobileAppTab='vacations';render()">➕ בקשה חדשה</button>
-    <div class="ma-section-title">הבקשות שלי</div>
+    <div class="ma-section-title" style="margin-top:0">אילוצים לשבוע</div>
+    <div class="ma-week-nav">
+      <div class="ma-week-btn" onclick="changeConstraintsWeek(1)">▶ שבוע הבא</div>
+      <div class="ma-week-btn" style="pointer-events:none">${fmtWeekLabel(nextSunday)}</div>
+      <div class="ma-week-btn" onclick="changeConstraintsWeek(-1)">שבוע קודם ◀</div>
+    </div>
+    ${!windowOpen?`<div class="ma-empty" style="padding:8px 0;font-size:12px">🔒 ההגשה לשבוע הזה ננעלה (המועד היה עד יום חמישי 11:00)</div>`:''}
+    <div class="constraint-days" style="margin-bottom:18px">${constraintPills}</div>
+    <button class="ma-newreq-btn" onclick="mobileAppTab='vacations';render()">➕ בקשת חופשה חדשה</button>
+    <div class="ma-section-title">בקשות החופשה שלי</div>
     ${body}
   </div>`;
 }
