@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-80';
+const APP_VERSION = '2026-07-13-82';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2723,23 +2723,6 @@ function renderConstraints(){
   html += renderConstraintsOverview();
   return html;
 }
-const WORKER_REGION = {
-  'ליאור פז':'ta','דור קשלס':'ta','יוגב אטיאס':'ta','ברוך גואטה':'ta','אורן בלנקשטיין':'ta',
-  'סלבה קנייזן':'ta','ירון סודרי':'ta','רוליק נביצקי':'ta','אורון גולן':'ta','מיכה ריזוב':'ta','מיכה לויט':'ta',
-  'טל שמעוני':'ta',
-  'אילן הירשפלד':'jerusalem','דני צגאו':'jerusalem','יובב בוטבול':'jerusalem','עופר אידלשטיין':'jerusalem',
-  'מוחמד אבו רמילה':'jerusalem','מיכאל בורוכוביץ':'jerusalem',
-  'מאיר דהן':'south','ארז כהן':'south',
-  'דורון כהן':'haifa','טליה אלוני':'haifa',
-  'אודי אלון':'jerusalem','מנו יחזקאלי':'jerusalem','נועם אלימלך':'jerusalem',
-  'סרחיו ארדיטי':'ta','מיקי קשאני':'ta','ניר צינמון':'ta','אורן יעקובוביץ':'ta',
-  'גל שני':'haifa'
-};
-function normNameForMatch(n){
-  return (n||'').replace(/[^\u05D0-\u05EA\u0041-\u005A\u0061-\u007A]/g, '');
-}
-const WORKER_REGION_NORM = {};
-Object.keys(WORKER_REGION).forEach(k=>{ WORKER_REGION_NORM[normNameForMatch(k)] = WORKER_REGION[k]; });
 function renderConstraintsOverview(){
   const nextSunday = getWeekStart(constraintsWeekOffset);
   const activeWorkers = workers.filter(w=>w.active);
@@ -2768,7 +2751,7 @@ function renderConstraintsOverview(){
   let bodyRows = '';
   const usedIds = new Set();
   groupOrder.forEach(g=>{
-    const groupWorkers = activeWorkers.filter(w=>w.type===g.type && (w.region || WORKER_REGION_NORM[normNameForMatch(w.name)])===g.key);
+    const groupWorkers = activeWorkers.filter(w=>w.type===g.type && w.region===g.key);
     if(!groupWorkers.length) return;
     groupWorkers.forEach(w=>usedIds.add(w.id));
     bodyRows += `<tr><td class="row-label" colspan="8" style="background:#EFEFEC;text-align:right">${g.label}</td></tr>`;
@@ -2892,6 +2875,7 @@ function renderVacations(){
         ${v.req_type==='sick'?'<span class="vac-status sicktype">🤒 מחלה</span>':''}
         <span class="vac-status ${v.status}">${v.status==='approved'?'מאושר':v.status==='rejected'?'נדחה':'ממתין'}</span>
         ${editMode?`
+          <button class="btn btn-sm" onclick="editVacationDates('${v.id}')">ערוך תאריכים</button>
           ${v.status!=='approved'?`<button class="btn btn-sm btn-primary" onclick="setVacStatus('${v.id}','approved')">אשר</button>`:''}
           ${v.status!=='rejected'?`<button class="btn btn-sm btn-danger" onclick="setVacStatus('${v.id}','rejected')">${v.status==='approved'?'בטל אישור':'דחה'}</button>`:''}
           ${v.status!=='pending'?`<button class="btn btn-sm" onclick="setVacStatus('${v.id}','pending')">החזר לממתין</button>`:''}
@@ -2901,6 +2885,22 @@ function renderVacations(){
     </div>`;
   });
   return html;
+}
+async function editVacationDates(id){
+  const v = vacationRequests.find(x=>x.id===id);
+  if(!v) return;
+  const newFrom = prompt('מתאריך (YYYY-MM-DD):', v.from_date);
+  if(newFrom===null) return;
+  const newTo = prompt('עד תאריך (YYYY-MM-DD):', v.to_date);
+  if(newTo===null) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(newFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(newTo)){
+    alert('פורמט תאריך לא תקין - נדרש YYYY-MM-DD');
+    return;
+  }
+  const {error} = await sb.from('vacation_requests').update({from_date:newFrom, to_date:newTo}).eq('id',id);
+  if(error){ alert('שגיאה בעדכון - כנראה חפיפה עם חופשה מאושרת אחרת של אותו עובד.'); return; }
+  v.from_date = newFrom; v.to_date = newTo;
+  render();
 }
 async function deleteVacation(id){
   if(!confirm('למחוק את הבקשה הזו לגמרי? (פעולה זו לא שולחת מייל לעובד)')) return;
