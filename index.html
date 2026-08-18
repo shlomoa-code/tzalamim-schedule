@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-78';
+const APP_VERSION = '2026-07-13-79';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2722,7 +2722,7 @@ const WORKER_REGION = {
   'גל שני':'haifa'
 };
 function normNameForMatch(n){
-  return (n||'').replace(/['׳״"]/g, '').replace(/\s+/g,' ').trim();
+  return (n||'').replace(/[^\u05D0-\u05EA\u0041-\u005A\u0061-\u007A]/g, '');
 }
 const WORKER_REGION_NORM = {};
 Object.keys(WORKER_REGION).forEach(k=>{ WORKER_REGION_NORM[normNameForMatch(k)] = WORKER_REGION[k]; });
