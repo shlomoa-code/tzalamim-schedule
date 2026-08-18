@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-77';
+const APP_VERSION = '2026-07-13-78';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2721,6 +2721,11 @@ const WORKER_REGION = {
   'סרחיו ארדיטי':'ta','מיקי קשאני':'ta','ניר צינמון':'ta','אורן יעקובוביץ':'ta',
   'גל שני':'haifa'
 };
+function normNameForMatch(n){
+  return (n||'').replace(/['׳״"]/g, '').replace(/\s+/g,' ').trim();
+}
+const WORKER_REGION_NORM = {};
+Object.keys(WORKER_REGION).forEach(k=>{ WORKER_REGION_NORM[normNameForMatch(k)] = WORKER_REGION[k]; });
 function renderConstraintsOverview(){
   const nextSunday = getWeekStart(constraintsWeekOffset);
   const activeWorkers = workers.filter(w=>w.active);
@@ -2749,7 +2754,7 @@ function renderConstraintsOverview(){
   let bodyRows = '';
   const usedIds = new Set();
   groupOrder.forEach(g=>{
-    const groupWorkers = activeWorkers.filter(w=>w.type===g.type && WORKER_REGION[w.name]===g.key);
+    const groupWorkers = activeWorkers.filter(w=>w.type===g.type && WORKER_REGION_NORM[normNameForMatch(w.name)]===g.key);
     if(!groupWorkers.length) return;
     groupWorkers.forEach(w=>usedIds.add(w.id));
     bodyRows += `<tr><td class="row-label" colspan="8" style="background:#EFEFEC;text-align:right">${g.label}</td></tr>`;
