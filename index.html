@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-79';
+const APP_VERSION = '2026-07-13-80';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2412,6 +2412,15 @@ function renderWorkers(){
       <span>${w.name}${w.email?` <span style="color:var(--muted);font-size:11px">(${w.email})</span>`:''} <span class="stat-count">${counts[w.id]||0} השבוע</span></span>
       ${editMode?`<div style="display:flex;gap:6px;align-items:center">
         <label style="font-size:11px;color:var(--muted)">תקן: <input type="number" min="0" max="7" value="${w.weekly_quota==null?5:w.weekly_quota}" style="width:44px;padding:2px 4px" onchange="updateWorkerQuota('${w.id}',this.value)"></label>
+        <label style="font-size:11px;color:var(--muted)">אזור:
+          <select style="padding:2px 4px" onchange="updateWorkerRegion('${w.id}',this.value)">
+            <option value="" ${!w.region?'selected':''}>—</option>
+            <option value="ta" ${w.region==='ta'?'selected':''}>ת"א</option>
+            <option value="jerusalem" ${w.region==='jerusalem'?'selected':''}>ירושלים</option>
+            <option value="south" ${w.region==='south'?'selected':''}>דרום</option>
+            <option value="haifa" ${w.region==='haifa'?'selected':''}>חיפה</option>
+          </select>
+        </label>
         <button class="btn btn-sm" onclick="editWorker('${w.id}')">ערוך</button>
         <button class="btn btn-sm btn-danger" onclick="deleteWorker('${w.id}')">מחק</button>
         <button class="btn btn-sm" onclick="toggleWorkerActive('${w.id}',${!w.active})">${w.active?'השבת':'הפעל'}</button>
@@ -2504,6 +2513,11 @@ async function updateWorkerQuota(id, value){
   if(isNaN(quota) || quota<0) return;
   await sb.from('workers').update({weekly_quota:quota}).eq('id',id);
   const w = workers.find(x=>x.id===id); if(w) w.weekly_quota = quota;
+}
+async function updateWorkerRegion(id, value){
+  const region = value || null;
+  await sb.from('workers').update({region}).eq('id',id);
+  const w = workers.find(x=>x.id===id); if(w) w.region = region;
 }
 async function editWorker(id){
   const w = workers.find(x=>x.id===id);
@@ -2754,7 +2768,7 @@ function renderConstraintsOverview(){
   let bodyRows = '';
   const usedIds = new Set();
   groupOrder.forEach(g=>{
-    const groupWorkers = activeWorkers.filter(w=>w.type===g.type && WORKER_REGION_NORM[normNameForMatch(w.name)]===g.key);
+    const groupWorkers = activeWorkers.filter(w=>w.type===g.type && (w.region || WORKER_REGION_NORM[normNameForMatch(w.name)])===g.key);
     if(!groupWorkers.length) return;
     groupWorkers.forEach(w=>usedIds.add(w.id));
     bodyRows += `<tr><td class="row-label" colspan="8" style="background:#EFEFEC;text-align:right">${g.label}</td></tr>`;
