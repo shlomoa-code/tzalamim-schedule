@@ -314,9 +314,16 @@ h1{font-size:19px;font-weight:600}
 </datalist>
 <div id="access-gate" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:20px;text-align:center">
   <div style="font-size:20px;font-weight:700">🔒 סידור עבודה — צלמים ומקליטים</div>
-  <div style="color:#6B7280;font-size:14px">הזן את המייל הארגוני שלך כדי להיכנס</div>
-  <input id="access-code-input" type="email" style="padding:10px 14px;border:1px solid #E4E4E7;border-radius:8px;font-size:16px;width:260px;text-align:center;direction:ltr" placeholder="name@kan.org.il" onkeydown="if(event.key==='Enter') submitTeamAccess()">
-  <button class="btn btn-primary" onclick="submitTeamAccess()" style="padding:9px 22px">כניסה</button>
+  <div id="access-step-email">
+    <div style="color:#6B7280;font-size:14px;margin-bottom:14px">הזן את המייל הארגוני שלך כדי להיכנס</div>
+    <input id="access-code-input" type="email" style="padding:10px 14px;border:1px solid #E4E4E7;border-radius:8px;font-size:16px;width:260px;text-align:center;direction:ltr" placeholder="name@kan.org.il" onkeydown="if(event.key==='Enter') submitTeamAccessEmail()">
+    <div style="margin-top:12px"><button class="btn btn-primary" onclick="submitTeamAccessEmail()" style="padding:9px 22px">כניסה</button></div>
+  </div>
+  <div id="access-step-pin" style="display:none">
+    <div style="color:#6B7280;font-size:14px;margin-bottom:14px">הזן את הקוד האישי שלך</div>
+    <input id="access-pin-input" type="text" inputmode="numeric" style="padding:10px 14px;border:1px solid #E4E4E7;border-radius:8px;font-size:16px;width:260px;text-align:center;direction:ltr" placeholder="קוד אישי" onkeydown="if(event.key==='Enter') submitTeamAccessPin()">
+    <div style="margin-top:12px"><button class="btn btn-primary" onclick="submitTeamAccessPin()" style="padding:9px 22px">אישור</button></div>
+  </div>
   <div id="access-error" style="color:#A32D2D;font-size:13px;display:none">המייל לא מזוהה. פנה למנהל.</div>
 </div>
 <div class="wrap" id="app-wrap" style="display:none">
@@ -359,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-84';
+const APP_VERSION = '2026-07-13-86';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1001,7 +1008,7 @@ function buildTabs(){
         ? TABS.filter(t=> ['fullschedule','calendar','constraints','duty'].includes(t.kind))
         : TABS.filter(t=> t.kind==='fullschedule'))
     : TABS.filter(t=> {
-        if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager';
+        if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager' && editMode;
         return (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode;
       });
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
@@ -1029,7 +1036,7 @@ function render(){
   const excelBtn = document.getElementById('excel-export-btn');
   if(excelBtn) excelBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
   const backupBtn = document.getElementById('backup-export-btn');
-  if(backupBtn) backupBtn.style.display = accessRole==='manager' ? '' : 'none';
+  if(backupBtn) backupBtn.style.display = (accessRole==='manager' && editMode) ? '' : 'none';
   const editBtn = document.getElementById('edit-toggle');
   if(editBtn) editBtn.style.display = (accessRole==='manager' || editMode) ? '' : 'none';
   const prevScrollY = window.scrollY;
@@ -1859,7 +1866,7 @@ function renderMobileDays(sections){
 let showFullScheduleMobile = false;
 function renderMasterTable(){
   const sunday = getWeekStart(weekOffset);
-  const canSeeDraft = editMode || accessRole==='manager';
+  const canSeeDraft = editMode;
   if(!weekPublished && !canSeeDraft){
     return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}</div>
     <div class="empty-msg" style="padding:40px 16px;font-size:14px">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div>`;
@@ -2399,7 +2406,8 @@ async function onMivtzaimSlotChange(inputEl, day, id){
 function renderProducers(){
   const rowHtml = v => `<div class="wchip ${v.active?'':'inactive'}">
       <span>${v.name} <span style="color:var(--muted);font-size:11px">(${v.email})</span></span>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:11px;color:var(--muted)">קוד אישי: <input type="text" placeholder="—" value="${v.personal_code||''}" style="width:60px;padding:2px 4px" onchange="updateViewerPersonalCode('${v.id}',this.value)"></label>
         <button class="btn btn-sm btn-danger" onclick="deleteViewer('${v.id}')">מחק</button>
         <button class="btn btn-sm" onclick="toggleViewerActive('${v.id}',${!v.active})">${v.active?'השבת':'הפעל'}</button>
       </div>
@@ -2432,6 +2440,7 @@ function renderWorkers(){
             <option value="haifa" ${w.region==='haifa'?'selected':''}>חיפה</option>
           </select>
         </label>
+        <label style="font-size:11px;color:var(--muted)">קוד אישי: <input type="text" placeholder="—" value="${w.personal_code||''}" style="width:60px;padding:2px 4px" onchange="updateWorkerPersonalCode('${w.id}',this.value)"></label>
         <button class="btn btn-sm" onclick="editWorker('${w.id}')">ערוך</button>
         <button class="btn btn-sm btn-danger" onclick="deleteWorker('${w.id}')">מחק</button>
         <button class="btn btn-sm" onclick="toggleWorkerActive('${w.id}',${!w.active})">${w.active?'השבת':'הפעל'}</button>
@@ -2478,6 +2487,11 @@ async function toggleViewerActive(id, active){
   await sb.from('viewers').update({active}).eq('id',id);
   const v = viewers.find(x=>x.id===id); if(v) v.active=active;
   render();
+}
+async function updateViewerPersonalCode(id, value){
+  const code = value.trim() || null;
+  await sb.from('viewers').update({personal_code:code}).eq('id',id);
+  const v = viewers.find(x=>x.id===id); if(v) v.personal_code = code;
 }
 async function deleteViewer(id){
   if(!confirm('למחוק את הצופה הזה?')) return;
@@ -2529,6 +2543,11 @@ async function updateWorkerRegion(id, value){
   const region = value || null;
   await sb.from('workers').update({region}).eq('id',id);
   const w = workers.find(x=>x.id===id); if(w) w.region = region;
+}
+async function updateWorkerPersonalCode(id, value){
+  const code = value.trim() || null;
+  await sb.from('workers').update({personal_code:code}).eq('id',id);
+  const w = workers.find(x=>x.id===id); if(w) w.personal_code = code;
 }
 async function editWorker(id){
   const w = workers.find(x=>x.id===id);
@@ -2849,7 +2868,7 @@ function renderVacations(){
   </div>`;
 
   const pending = vacationRequests.filter(v=>v.status==='pending');
-  const canSeePending = editMode || accessRole==='manager';
+  const canSeePending = editMode;
   if(canSeePending && pending.length){
     html += `<h3 style="font-size:13px;margin-bottom:8px">בקשות ממתינות לאישור${editMode?'':' (להזנת סיסמה לאישור/דחייה - היכנס למצב עריכה)'}</h3>`;
     pending.forEach(v=>{
@@ -3605,36 +3624,62 @@ async function checkTeamAccess(){
     document.getElementById('access-code-input').focus();
   }
 }
-async function submitTeamAccess(){
+let pendingAccess = null;
+async function submitTeamAccessEmail(){
   const val = document.getElementById('access-code-input').value.trim().toLowerCase();
   if(!val){ return; }
+  document.getElementById('access-error').style.display = 'none';
   let allowed = MANAGER_ACCESS_EMAILS.includes(val);
   let role = allowed ? 'manager' : 'full';
+  let personalCode = null;
   if(!allowed){
     try{
-      const {data} = await sb.from('workers').select('id,email,active').ilike('email', val);
-      allowed = (data||[]).some(w=>w.active && w.email && w.email.toLowerCase()===val);
+      const {data} = await sb.from('workers').select('id,email,active,personal_code').ilike('email', val);
+      const match = (data||[]).find(w=>w.active && w.email && w.email.toLowerCase()===val);
+      if(match){ allowed = true; personalCode = match.personal_code || null; }
     }catch(e){ console.error('access check failed', e); }
   }
   if(!allowed){
     try{
-      const {data} = await sb.from('viewers').select('id,email,active').ilike('email', val);
-      allowed = (data||[]).some(w=>w.active && w.email && w.email.toLowerCase()===val);
-      if(allowed) role = 'producer';
+      const {data} = await sb.from('viewers').select('id,email,active,personal_code').ilike('email', val);
+      const match = (data||[]).find(w=>w.active && w.email && w.email.toLowerCase()===val);
+      if(match){ allowed = true; role = 'producer'; personalCode = match.personal_code || null; }
     }catch(e){ console.error('viewer access check failed', e); }
   }
-  if(allowed){
-    localStorage.setItem('team_access_granted', 'yes');
-    localStorage.setItem('team_access_email', val);
-    localStorage.setItem('access_role', role);
-    accessRole = role;
-    document.getElementById('access-gate').style.display = 'none';
-    document.getElementById('app-wrap').style.display = '';
-    loadWeek();
-    setupRealtime();
-  } else {
+  if(!allowed){
+    document.getElementById('access-error').textContent = 'המייל לא מזוהה. פנה למנהל.';
     document.getElementById('access-error').style.display = 'block';
+    return;
   }
+  if(personalCode){
+    pendingAccess = {email: val, role, code: personalCode};
+    document.getElementById('access-step-email').style.display = 'none';
+    document.getElementById('access-step-pin').style.display = '';
+    document.getElementById('access-pin-input').focus();
+  } else {
+    finishTeamAccess(val, role);
+  }
+}
+function submitTeamAccessPin(){
+  const pin = document.getElementById('access-pin-input').value.trim();
+  if(!pendingAccess) return;
+  if(pin !== pendingAccess.code){
+    document.getElementById('access-error').textContent = 'קוד שגוי.';
+    document.getElementById('access-error').style.display = 'block';
+    return;
+  }
+  finishTeamAccess(pendingAccess.email, pendingAccess.role);
+  pendingAccess = null;
+}
+function finishTeamAccess(email, role){
+  localStorage.setItem('team_access_granted', 'yes');
+  localStorage.setItem('team_access_email', email);
+  localStorage.setItem('access_role', role);
+  accessRole = role;
+  document.getElementById('access-gate').style.display = 'none';
+  document.getElementById('app-wrap').style.display = '';
+  loadWeek();
+  setupRealtime();
 }
 /* ===================== בדיקת גרסה חדשה (מונע תקיעות על גרסה ישנה שמורה במטמון) ===================== */
 async function checkForNewVersion(){
