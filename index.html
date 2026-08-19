@@ -359,7 +359,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-82';
+const APP_VERSION = '2026-07-13-83';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1508,10 +1508,15 @@ function renderMaTeam(){
     if(!dayShifts.length) return;
     body += `<div class="ma-team-group-title">${r.name} · ${dayShifts.length} משמרות</div>`;
     dayShifts.forEach(s=>{
-      const name = (s.freelance_name && s.freelance_name!=='?') ? freelanceLabel(s.freelance_name) : (workerName(s.worker_id)||'—');
-      const rname = (s.freelance_recorder_name && s.freelance_recorder_name!=='?') ? s.freelance_recorder_name : workerName(s.recorder_id);
+      const pname = (s.freelance_name && s.freelance_name!=='?') ? freelanceLabel(s.freelance_name) : (s.worker_id ? workerName(s.worker_id) : '');
+      const rname = (s.freelance_recorder_name && s.freelance_recorder_name!=='?') ? s.freelance_recorder_name : (s.recorder_id ? workerName(s.recorder_id) : '');
+      let nameLine;
+      if(pname && rname) nameLine = `${pname} <span style="color:var(--muted);font-weight:400">· מקליט: ${rname}</span>`;
+      else if(pname) nameLine = pname;
+      else if(rname) nameLine = `<span style="color:var(--muted);font-weight:400">מקליט:</span> ${rname}`;
+      else nameLine = '—';
       body += `<div class="ma-team-card">
-        <div><div class="ma-team-name">${name}${rname?' · '+rname:''}</div><div class="sub" style="font-size:11px">${s.label||''}</div></div>
+        <div><div class="ma-team-name">${nameLine}</div><div class="sub" style="font-size:11px">${s.label||''}</div></div>
         <div class="ma-team-time">${s.start_time}–${s.end_time}</div>
       </div>`;
     });
@@ -1521,9 +1526,15 @@ function renderMaTeam(){
     if(!teams.length) return;
     body += `<div class="ma-team-group-title">${MAGAZINES[key].name}</div>`;
     teams.forEach(t=>{
-      const pname = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? freelanceLabel(t.freelance_photographer_name) : (workerName(t.photographer_id)||'—');
+      const pname = (t.freelance_photographer_name && t.freelance_photographer_name!=='?') ? freelanceLabel(t.freelance_photographer_name) : (t.photographer_id ? workerName(t.photographer_id) : '');
+      const rname = (t.freelance_recorder_name && t.freelance_recorder_name!=='?') ? t.freelance_recorder_name : (t.recorder_id ? workerName(t.recorder_id) : '');
+      let nameLine;
+      if(pname && rname) nameLine = `${pname} <span style="color:var(--muted);font-weight:400">· מקליט: ${rname}</span>`;
+      else if(pname) nameLine = pname;
+      else if(rname) nameLine = `<span style="color:var(--muted);font-weight:400">מקליט:</span> ${rname}`;
+      else nameLine = '—';
       body += `<div class="ma-team-card">
-        <div><div class="ma-team-name">${pname}</div><div class="sub" style="font-size:11px">${t.reporter_name||''}</div></div>
+        <div><div class="ma-team-name">${nameLine}</div><div class="sub" style="font-size:11px">${t.reporter_name||''}</div></div>
         <div class="ma-team-time">${t.start_time||''}${t.end_time?'–'+t.end_time:''}</div>
       </div>`;
     });
