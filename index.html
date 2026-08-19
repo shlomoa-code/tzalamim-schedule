@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-86';
+const APP_VERSION = '2026-07-13-88';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -950,8 +950,10 @@ async function ensureOncallInitialized(){
 /* ===================== מצב עריכה ===================== */
 function toggleEdit(){
   if(!editMode){
-    const pw = prompt('סיסמת מנהל:');
-    if(pw !== ADMIN_PASSWORD){ if(pw!==null) alert('סיסמה שגויה'); return; }
+    if(accessRole!=='manager'){
+      const pw = prompt('סיסמת מנהל:');
+      if(pw !== ADMIN_PASSWORD){ if(pw!==null) alert('סיסמה שגויה'); return; }
+    }
     editMode = true;
   } else {
     editMode = false;
@@ -3631,7 +3633,7 @@ async function submitTeamAccessEmail(){
   document.getElementById('access-error').style.display = 'none';
   let allowed = MANAGER_ACCESS_EMAILS.includes(val);
   let role = allowed ? 'manager' : 'full';
-  let personalCode = null;
+  let personalCode = allowed ? ADMIN_PASSWORD : null;
   if(!allowed){
     try{
       const {data} = await sb.from('workers').select('id,email,active,personal_code').ilike('email', val);
