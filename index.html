@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-89';
+const APP_VERSION = '2026-07-13-90';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1135,13 +1135,14 @@ function teamCardHtml(t){
     const dP = dispName(pname);
     const dR = dispName(rname);
     const combined = dP && dR ? `${dP} + ${dR}` : (dP || dR || null);
-    if(!combined && !sickP && !sickR) return ''; // תא ריק - לא מציגים כלום
+    if(!combined && !sickP && !sickR && !t.note) return ''; // תא ריק - לא מציגים כלום
     const isFreelance = !!(t.freelance_photographer_name || t.freelance_recorder_name);
     const hasDetails = t.reporter_name || t.topic || t.area || t.shoot_day || t.start_time;
     return `<div class="mini-card ${hasDetails?'clickable':''}" ${hasDetails?`onclick="openTeamDetails('${t.id}')"`:''}>
       ${sickP?`<div class="sick-badge">🤒 ${sickP}</div>`:''}
       ${sickR?`<div class="sick-badge">🤒 ${sickR}</div>`:''}
       ${combined?`<div class="worker-pill filled ${isFreelance?'freelance':''}">${combined}</div>`:''}
+      ${t.note?`<div class="shift-note" style="white-space:normal">📌 ${t.note}</div>`:''}
       ${hasDetails?'<div class="tap-hint">לפרטים לחץ כאן</div>':''}
     </div>`;
   }
@@ -1167,6 +1168,7 @@ function teamCardHtml(t){
     <input placeholder="כתב" value="${t.reporter_name||''}" onchange="updateTeam('${t.id}','reporter_name',this.value); showPrevShootDayHint('${t.id}')">
     <input placeholder="נושא" value="${t.topic||''}" onchange="updateTeam('${t.id}','topic',this.value)">
     <input placeholder="אזור" value="${t.area||''}" onchange="updateTeam('${t.id}','area',this.value)">
+    <input placeholder="הערה (עוזרת הפקה, מאפרת, וכל דבר אחר)" value="${t.note||''}" onchange="updateTeam('${t.id}','note',this.value)">
     <input type="number" min="1" placeholder="יום צילום מספר (1, 2, 3...)" value="${t.shoot_day||''}" onchange="updateTeam('${t.id}','shoot_day',this.value); showPrevShootDayHint('${t.id}')">
     <div id="prev-shoot-${t.id}" class="prev-shoot-hint-box"></div>
     <div class="shift-time"><input value="${t.start_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','start_time',this.value)">–<input value="${t.end_time||''}" placeholder="00:00" onchange="updateTeam('${t.id}','end_time',this.value)"></div>
@@ -1201,6 +1203,7 @@ function openTeamDetails(id){
     ${t.area?`<div class="popup-opt">📍 אזור: ${t.area}</div>`:''}
     ${t.shoot_day?`<div class="popup-opt">🎬 יום צילום: ${t.shoot_day}</div>`:''}
     ${t.start_time?`<div class="popup-opt">🕐 שעות: <span dir="ltr">${t.start_time}–${t.end_time}</span></div>`:''}
+    ${t.note?`<div class="popup-opt">📌 ${t.note}</div>`:''}
   `;
   document.getElementById('popup-overlay').classList.add('show');
 }
