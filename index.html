@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-90';
+const APP_VERSION = '2026-07-13-91';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2650,7 +2650,7 @@ async function openWorkerPopup(kind, id, role){
     }
     const blockReason = onVacation?'בחופש':(cstatus==='comp_day'?'ביום תמורה':(cstatus==='sick'?'במחלה':(doubleBookedWhere?`כבר משובץ/ת היום ב-${doubleBookedWhere}`:'')));
     const clickAction = blocking
-      ? `if(confirm('${w.name} ${blockReason}. לשבץ בכל זאת?')) pickWorker('${w.id}')`
+      ? `confirmAndPickWorker('${w.id}','${blockReason.replace(/'/g,"\\'")}')`
       : `pickWorker('${w.id}')`;
     const cls = blocking ? ' vac-warn' : (warn ? ' pref-info' : '');
     return `<div class="popup-opt${cls}" onclick="${clickAction}">${w.name}${warn}</div>`;
@@ -2666,6 +2666,11 @@ async function openWorkerPopup(kind, id, role){
   document.getElementById('popup-overlay').classList.add('show');
 }
 function closePopup(){ document.getElementById('popup-overlay').classList.remove('show'); popupCtx=null; }
+function confirmAndPickWorker(workerId, blockReason){
+  const w = workers.find(x=>x.id===workerId);
+  const name = w ? w.name : '';
+  if(confirm(`${name} ${blockReason}. לשבץ בכל זאת?`)) pickWorker(workerId);
+}
 async function pickWorker(workerId){
   if(!popupCtx) return;
   const {kind, id, role} = popupCtx;
