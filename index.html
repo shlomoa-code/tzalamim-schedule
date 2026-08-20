@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-88';
+const APP_VERSION = '2026-07-13-89';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1010,7 +1010,7 @@ function buildTabs(){
         ? TABS.filter(t=> ['fullschedule','calendar','constraints','duty'].includes(t.kind))
         : TABS.filter(t=> t.kind==='fullschedule'))
     : TABS.filter(t=> {
-        if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager' && editMode;
+        if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager';
         return (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode;
       });
   el.innerHTML = visibleTabs.map(t=>`<button class="tab ${t.id===activeTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
@@ -1868,7 +1868,7 @@ function renderMobileDays(sections){
 let showFullScheduleMobile = false;
 function renderMasterTable(){
   const sunday = getWeekStart(weekOffset);
-  const canSeeDraft = editMode;
+  const canSeeDraft = editMode || accessRole==='manager';
   if(!weekPublished && !canSeeDraft){
     return `<div class="sub" style="margin-bottom:10px">שבוע: ${fmtWeekLabel(sunday)}</div>
     <div class="empty-msg" style="padding:40px 16px;font-size:14px">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div>`;
@@ -2870,7 +2870,7 @@ function renderVacations(){
   </div>`;
 
   const pending = vacationRequests.filter(v=>v.status==='pending');
-  const canSeePending = editMode;
+  const canSeePending = editMode || accessRole==='manager';
   if(canSeePending && pending.length){
     html += `<h3 style="font-size:13px;margin-bottom:8px">בקשות ממתינות לאישור${editMode?'':' (להזנת סיסמה לאישור/דחייה - היכנס למצב עריכה)'}</h3>`;
     pending.forEach(v=>{
