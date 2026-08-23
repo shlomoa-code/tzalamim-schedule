@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-91';
+const APP_VERSION = '2026-07-13-93';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -3692,28 +3692,28 @@ function finishTeamAccess(email, role){
   setupRealtime();
 }
 /* ===================== בדיקת גרסה חדשה (מונע תקיעות על גרסה ישנה שמורה במטמון) ===================== */
+let pendingReload = false;
 async function checkForNewVersion(){
   try{
     const res = await fetch(location.pathname + '?_=' + Date.now(), {cache:'no-store'});
     const text = await res.text();
     const m = text.match(/const APP_VERSION = '([^']+)'/);
     if(m && m[1] !== APP_VERSION){
-      showUpdateBanner();
+      pendingReload = true;
+      // מרעננים אך ורק כשהמסך לא פעיל כרגע (המשתמש לא נמצא בו בפועל) - כדי שלעולם לא נפריע לעבודה באמצע
+      if(document.visibilityState === 'hidden'){
+        location.reload();
+      }
     }
   }catch(e){ /* ללא אינטרנט וכו' - מתעלמים */ }
-}
-function showUpdateBanner(){
-  if(document.getElementById('update-banner')) return;
-  const b = document.createElement('div');
-  b.id = 'update-banner';
-  b.style.cssText = 'position:fixed;bottom:0;right:0;left:0;background:#1A6FBF;color:#fff;padding:12px 16px;text-align:center;font-size:14px;z-index:9999;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap';
-  b.innerHTML = `<span>🔄 יש גרסה מעודכנת של האפליקציה</span><button style="background:#fff;color:#1A6FBF;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer" onclick="location.reload(true)">רענן עכשיו</button>`;
-  document.body.appendChild(b);
 }
 setInterval(checkForNewVersion, 2*60*1000);
 syncServerTime();
 setInterval(syncServerTime, 5*60*1000);
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkForNewVersion(); });
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='hidden' && pendingReload){ location.reload(); return; }
+  if(document.visibilityState==='visible') checkForNewVersion();
+});
 checkForNewVersion();
 
 if('serviceWorker' in navigator){
