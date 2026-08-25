@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-93';
+const APP_VERSION = '2026-07-13-94';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1008,7 +1008,7 @@ function buildTabs(){
   const visibleTabs = accessRole==='producer'
     ? (isExpandedProducer
         ? TABS.filter(t=> ['fullschedule','calendar','constraints','duty'].includes(t.kind))
-        : TABS.filter(t=> t.kind==='fullschedule'))
+        : TABS.filter(t=> ['fullschedule','calendar'].includes(t.kind)))
     : TABS.filter(t=> {
         if(t.kind==='topline_log' || t.kind==='freelance_log') return accessRole==='manager';
         return (t.kind!=='workers' && t.kind!=='overview' && t.kind!=='producers') || editMode;
