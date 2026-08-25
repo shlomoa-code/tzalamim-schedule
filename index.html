@@ -272,6 +272,7 @@ h1{font-size:19px;font-weight:600}
 .constraint-pill.sick{background:#F1E6FB;color:#6D28D9;border-color:#C9A8ED}
 .constraint-pill.comp-day{background:#E1F5EE;color:#0F6E56;border-color:#9FDBC4}
 .constraint-pill.no-oncall{background:#FDEBD3;color:#B45309;border-color:#EFC98A}
+.constraint-pill.other{background:#F1E6FB;color:#6D28D9;border-color:#C9A8ED}
 .constraint-pill .cdate{display:block;font-weight:400;font-size:10px;margin-top:3px;opacity:.75}
 .overview-cell{text-align:center;font-size:10px;font-weight:600;min-width:70px}
 .overview-cell.avail{background:#fff;color:var(--muted)}
@@ -366,7 +367,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-101';
+const APP_VERSION = '2026-07-13-102';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -641,7 +642,8 @@ const CONSTRAINT_STATUSES = [
   {id:'prefer_late',label:'מעדיף משמרת מאוחרת',cls:'prefer-pm'},
   {id:'must_late',label:'חייב משמרת מאוחרת',cls:'must-pm'},
   {id:'sick',label:'מחלה',cls:'sick'},
-  {id:'comp_day',label:'יום תמורה',cls:'comp-day'}
+  {id:'comp_day',label:'יום תמורה',cls:'comp-day'},
+  {id:'other',label:'אחר (לפרט למנהל בלבד)',cls:'other'}
 ];
 
 const TABS = [
@@ -2867,7 +2869,7 @@ async function pickConstraintStatus(status){
   const day = constraintPopupDay;
   const existing = constraintsData.find(c=>c.worker_id===selectedConstraintWorker && c.day_of_week===day);
   let note = existing ? (existing.note||'') : '';
-  const wantsNote = status!=='available' && status!=='blocked';
+  const wantsNote = status!=='available' && status!=='blocked' && status!=='other';
   if(wantsNote){
     const entered = prompt('שעות מועדפות (לא חובה, למשל 10:00-18:00):', note);
     if(entered!==null) note = entered.trim();
@@ -2875,8 +2877,12 @@ async function pickConstraintStatus(status){
     note = '';
   }
   let private_note = existing ? (existing.private_note||'') : '';
-  const enteredPrivate = prompt('פירוט פרטי לגבי היום הזה (לא חובה) - זה יוצג רק למנהל, אף אחד אחר לא יראה:', private_note);
-  if(enteredPrivate!==null) private_note = enteredPrivate.trim();
+  if(status==='other'){
+    const enteredPrivate = prompt('פרט מה יש לך היום (זה יוצג רק למנהל, אף אחד אחר לא יראה):', private_note);
+    if(enteredPrivate!==null) private_note = enteredPrivate.trim();
+  } else {
+    private_note = '';
+  }
   if(existing){
     await sb.from('constraints').update({status, note, private_note, available: status!=='blocked'}).eq('id',existing.id);
     existing.status = status; existing.note = note; existing.private_note = private_note; existing.available = status!=='blocked';
