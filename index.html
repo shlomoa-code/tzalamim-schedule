@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-98';
+const APP_VERSION = '2026-07-13-100';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -393,11 +393,32 @@ async function sendPublishNotificationEmails(weekLabel){
   const message = `<h2 style="color:#1A6FBF;">פורסם סידור עבודה</h2>
     <p>פורסם סידור העבודה לשבוע <strong>${weekLabel}</strong>.</p>
     <p><a href="https://shlomoa-code.github.io/tzalamim-schedule/">לצפייה בסידור</a></p>`;
+  const sleep = (ms) => new Promise(r=>setTimeout(r, ms));
+  let sentCount = 0;
+  showEmailProgress(sentCount, uniqueEmails.length);
   for(const email of uniqueEmails){
     try{
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PUBLISH, { subject, message, worker_email: email });
     }catch(e){ console.error('publish email failed for', email, e); }
+    sentCount++;
+    showEmailProgress(sentCount, uniqueEmails.length);
+    await sleep(2500); // הפסקה בין מייל למייל, כדי לא להיראות כמו שליחה המונית לספאם-פילטרים ארגוניים
   }
+  hideEmailProgress();
+}
+function showEmailProgress(sent, total){
+  let el = document.getElementById('email-progress-banner');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'email-progress-banner';
+    el.style.cssText = 'position:fixed;bottom:0;right:0;left:0;background:#0F6E56;color:#fff;padding:10px 16px;text-align:center;font-size:13px;z-index:9998';
+    document.body.appendChild(el);
+  }
+  el.textContent = `📧 שולח הודעות פרסום... ${sent}/${total} — נא להשאיר את הדף פתוח עד לסיום`;
+}
+function hideEmailProgress(){
+  const el = document.getElementById('email-progress-banner');
+  if(el) el.remove();
 }
 async function sendVacationRequestEmail(workerName, fromDate, toDate, note){
   if(EMAILJS_TEMPLATE_REQUEST.startsWith('TEMPLATE_ID')) return; // עדיין לא הוגדרה תבנית
@@ -700,6 +721,11 @@ let calMonth, calYear;
 { const n = new Date(); calMonth = n.getMonth(); calYear = n.getFullYear(); }
 const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 const PALETTE = ['#1A6FBF','#C47A00','#0F6E56','#6D28D9','#0E7490','#B45309','#166534','#4338CA'];
+function calColorForWorker(workerId){
+  const w = workers.find(x=>x.id===workerId);
+  if(!w) return '#6B7280'; // לא נמצא - אפור ניטרלי
+  return w.type==='recorder' ? '#0F6E56' : '#1A6FBF'; // מקליטים ירוק, צלמים כחול
+}
 function colorFor(workerId){
   let h=0; for(const c of workerId) h = (h*31 + c.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
@@ -979,9 +1005,10 @@ async function togglePublish(){
     const {data} = await sb.from('week_publish').select('notified').eq('week_start', weekStart).maybeSingle();
     const alreadyNotified = data && data.notified;
     if(!alreadyNotified){
-      const sunday = getWeekStart(weekOffset);
-      await sendPublishNotificationEmails(fmtWeekLabel(sunday));
+      // מסמנים "notified" מיד, לפני שמתחילים לשלוח - כדי שלא ייווצר כפל שליחה אם ילחצו שוב באמצע
       await sb.from('week_publish').update({notified:true}).eq('week_start', weekStart);
+      const sunday = getWeekStart(weekOffset);
+      sendPublishNotificationEmails(fmtWeekLabel(sunday)); // רץ ברקע, לא חוסם - אבל כדאי להשאיר את הטאב פתוח כמה דקות
     }
   }
 }
@@ -3036,7 +3063,12 @@ function renderCalendar(){
     <div style="font-weight:600;font-size:14px;min-width:120px;text-align:center">${MONTHS_HE[calMonth]} ${calYear}</div>
     <button class="btn btn-sm" onclick="changeMonth(1)">▶</button>
   </div>
-  <div class="sub" style="margin-bottom:10px">מוצגות כאן חופשות ומחלות מאושרות, וגם מחלות שסומנו ישירות בסידור השבועי.</div>
+  <div class="sub" style="margin-bottom:6px">מוצגות כאן חופשות ומחלות מאושרות, וגם מחלות שסומנו ישירות בסידור השבועי.</div>
+  <div class="sub" style="margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap">
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#1A6FBF;margin-left:4px"></span>צלמים</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#0F6E56;margin-left:4px"></span>מקליטים</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#A32D2D;margin-left:4px"></span>מחלה</span>
+  </div>
   <div class="cal-grid">${dayNames.map(d=>`<div class="cal-dayname">${d}</div>`).join('')}`;
   const firstDay = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
@@ -3048,7 +3080,7 @@ function renderCalendar(){
     const approved = vacationRequests.filter(v=>v.status==='approved' && ds>=v.from_date && ds<=v.to_date);
     const shownWorkerIds = new Set(approved.map(v=>v.worker_id));
     const vacTags = approved.filter(v=>v.req_type!=='sick').map(v=>
-      `<div class="vac-tag-cal" style="background:${colorFor(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`
+      `<div class="vac-tag-cal" style="background:${calColorForWorker(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`
     ).join('');
     const sickTagsFromRequests = approved.filter(v=>v.req_type==='sick').map(v=>
       `<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(v.worker_id)||'—'}</div>`
