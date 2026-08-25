@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-94';
+const APP_VERSION = '2026-07-13-96';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2874,7 +2874,11 @@ function renderVacations(){
     <div class="field"><label>מתאריך</label><input type="date" id="vac-from"></div>
     <div class="field"><label>עד תאריך</label><input type="date" id="vac-to"></div>
     <div class="field"><label>הערה (לא חובה)</label><input type="text" id="vac-note" placeholder="סיבה..."></div>
-    <button class="btn btn-primary" onclick="submitVacation()">${editMode?'➕ הוסף חופשה מאושרת (ידני)':'שלח בקשה'}</button>
+    ${editMode?`<div class="field"><label>סוג</label><select id="vac-type">
+      <option value="vacation">🏖️ חופשה</option>
+      <option value="sick">🤒 מחלה</option>
+    </select></div>`:''}
+    <button class="btn btn-primary" onclick="submitVacation()">${editMode?'➕ הוסף חופשה/מחלה מאושרת (ידני)':'שלח בקשה'}</button>
   </div>`;
 
   const pending = vacationRequests.filter(v=>v.status==='pending');
@@ -2955,14 +2959,15 @@ async function submitVacation(){
   const note = document.getElementById('vac-note').value;
   if(!worker_id || !from_date){ alert('נא לבחור עובד ותאריך'); return; }
   if(editMode){
+    const req_type = document.getElementById('vac-type').value || 'vacation';
     // בדיקת חפיפה עם חופשה קיימת לאותו עובד, לפני שמירה
     const overlap = vacationRequests.find(v=>v.worker_id===worker_id && v.status==='approved' && v.from_date<=to_date && from_date<=v.to_date);
     if(overlap){
       alert(`ל${workerName(worker_id)} כבר יש חופשה מאושרת בין ${overlap.from_date} ל-${overlap.to_date} שחופפת לתאריכים האלה.\nהמערכת לא מאפשרת כפילות - אם צריך לשנות, ערוך או מחק קודם את הרשומה הקיימת.`);
       return;
     }
-    // מנהל מזין ישירות חופשה שכבר סוכמה (למשל בוואטסאפ) - נכנסת ישר כ"מאושר", בלי מייל ובלי שלב אישור
-    const {data, error} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'approved', req_type:'vacation'}).select();
+    // מנהל מזין ישירות חופשה/מחלה שכבר סוכמה (למשל בוואטסאפ) - נכנסת ישר כ"מאושר", בלי מייל ובלי שלב אישור
+    const {data, error} = await sb.from('vacation_requests').insert({worker_id, from_date, to_date, note, status:'approved', req_type}).select();
     if(error){ alert('שגיאה: נראה שיש כבר חופשה מאושרת חופפת לעובד הזה בתאריכים האלה. הרשומה לא נשמרה כדי למנוע כפילות.'); return; }
     if(data) vacationRequests.push(data[0]);
     render();
@@ -2997,13 +3002,41 @@ async function setVacStatus(id, status){
 }
 
 /* ---------- לוח חופשות ---------- */
+let calendarSickEntries = null;
+async function loadCalendarSickEntries(){
+  const [shiftsData, magData] = await Promise.all([
+    fetchAllRows('shifts', 'week_start,day_of_week,sick_worker_id,sick_recorder_id'),
+    fetchAllRows('magazine_teams', 'week_start,day_of_week,sick_photographer_id,sick_recorder_id')
+  ]);
+  const entries = []; // {date, worker_id}
+  const addDate = (weekStart, dayIdx) => {
+    const d = new Date(weekStart); d.setDate(d.getDate()+dayIdx);
+    return dateStr(d);
+  };
+  (shiftsData||[]).forEach(s=>{
+    const d = addDate(s.week_start, s.day_of_week);
+    if(s.sick_worker_id) entries.push({date:d, worker_id:s.sick_worker_id});
+    if(s.sick_recorder_id) entries.push({date:d, worker_id:s.sick_recorder_id});
+  });
+  (magData||[]).forEach(t=>{
+    const d = addDate(t.week_start, t.day_of_week);
+    if(t.sick_photographer_id) entries.push({date:d, worker_id:t.sick_photographer_id});
+    if(t.sick_recorder_id) entries.push({date:d, worker_id:t.sick_recorder_id});
+  });
+  calendarSickEntries = entries;
+  render();
+}
 function renderCalendar(){
+  if(calendarSickEntries === null){
+    loadCalendarSickEntries();
+  }
   const dayNames = ['א','ב','ג','ד','ה','ו','ש'];
   let html = `<div class="cal-nav">
     <button class="btn btn-sm" onclick="changeMonth(-1)">◀</button>
     <div style="font-weight:600;font-size:14px;min-width:120px;text-align:center">${MONTHS_HE[calMonth]} ${calYear}</div>
     <button class="btn btn-sm" onclick="changeMonth(1)">▶</button>
   </div>
+  <div class="sub" style="margin-bottom:10px">מוצגות כאן חופשות ומחלות מאושרות, וגם מחלות שסומנו ישירות בסידור השבועי.</div>
   <div class="cal-grid">${dayNames.map(d=>`<div class="cal-dayname">${d}</div>`).join('')}`;
   const firstDay = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
@@ -3013,11 +3046,19 @@ function renderCalendar(){
     const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = ds===todayStr;
     const approved = vacationRequests.filter(v=>v.status==='approved' && ds>=v.from_date && ds<=v.to_date);
+    const shownWorkerIds = new Set(approved.map(v=>v.worker_id));
     const tags = approved.map(v=> v.req_type==='sick'
       ? `<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(v.worker_id)||'—'}</div>`
       : `<div class="vac-tag-cal" style="background:${colorFor(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`
     ).join('');
-    html += `<div class="cal-cell ${isToday?'today':''}"><div class="cal-daynum">${d}</div>${tags}</div>`;
+    // מחלות שסומנו ישירות על משמרת בסידור (לא דרך "בקשת חופשה") - נמנעים מכפילות אם כבר מוצג
+    const shiftSick = (calendarSickEntries||[]).filter(e=>e.date===ds && !shownWorkerIds.has(e.worker_id));
+    const shiftSickIds = new Set();
+    const shiftSickTags = shiftSick.filter(e=>{
+      if(shiftSickIds.has(e.worker_id)) return false;
+      shiftSickIds.add(e.worker_id); return true;
+    }).map(e=>`<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(e.worker_id)||'—'}</div>`).join('');
+    html += `<div class="cal-cell ${isToday?'today':''}"><div class="cal-daynum">${d}</div>${tags}${shiftSickTags}</div>`;
   }
   html += `</div>`;
   return html;
