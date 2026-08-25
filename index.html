@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-96';
+const APP_VERSION = '2026-07-13-97';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -699,7 +699,7 @@ let selectedVacationWorker = '';
 let calMonth, calYear;
 { const n = new Date(); calMonth = n.getMonth(); calYear = n.getFullYear(); }
 const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-const PALETTE = ['#1A6FBF','#C47A00','#0F6E56','#A32D2D','#6D28D9','#0E7490','#B45309','#BE185D'];
+const PALETTE = ['#1A6FBF','#C47A00','#0F6E56','#6D28D9','#0E7490','#B45309','#166534','#4338CA'];
 function colorFor(workerId){
   let h=0; for(const c of workerId) h = (h*31 + c.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
@@ -3047,9 +3047,11 @@ function renderCalendar(){
     const isToday = ds===todayStr;
     const approved = vacationRequests.filter(v=>v.status==='approved' && ds>=v.from_date && ds<=v.to_date);
     const shownWorkerIds = new Set(approved.map(v=>v.worker_id));
-    const tags = approved.map(v=> v.req_type==='sick'
-      ? `<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(v.worker_id)||'—'}</div>`
-      : `<div class="vac-tag-cal" style="background:${colorFor(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`
+    const vacTags = approved.filter(v=>v.req_type!=='sick').map(v=>
+      `<div class="vac-tag-cal" style="background:${colorFor(v.worker_id)}">${workerName(v.worker_id)||'—'}</div>`
+    ).join('');
+    const sickTagsFromRequests = approved.filter(v=>v.req_type==='sick').map(v=>
+      `<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(v.worker_id)||'—'}</div>`
     ).join('');
     // מחלות שסומנו ישירות על משמרת בסידור (לא דרך "בקשת חופשה") - נמנעים מכפילות אם כבר מוצג
     const shiftSick = (calendarSickEntries||[]).filter(e=>e.date===ds && !shownWorkerIds.has(e.worker_id));
@@ -3058,7 +3060,8 @@ function renderCalendar(){
       if(shiftSickIds.has(e.worker_id)) return false;
       shiftSickIds.add(e.worker_id); return true;
     }).map(e=>`<div class="vac-tag-cal" style="background:#A32D2D">🤒 ${workerName(e.worker_id)||'—'}</div>`).join('');
-    html += `<div class="cal-cell ${isToday?'today':''}"><div class="cal-daynum">${d}</div>${tags}${shiftSickTags}</div>`;
+    // סדר קבוע: חופשות (למעלה) קודם, כל המחלות (למטה) אחרי, תמיד באדום
+    html += `<div class="cal-cell ${isToday?'today':''}"><div class="cal-daynum">${d}</div>${vacTags}${sickTagsFromRequests}${shiftSickTags}</div>`;
   }
   html += `</div>`;
   return html;
