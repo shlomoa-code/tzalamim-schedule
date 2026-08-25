@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-97';
+const APP_VERSION = '2026-07-13-98';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -3662,8 +3662,10 @@ window.addEventListener('resize', ()=>{
 });
 /* ===================== שער כניסה (מייל ארגוני) ===================== */
 const MANAGER_ACCESS_EMAILS = ['shlomoa@kan.org.il'];
+const REQUIRED_AUTH_VERSION = '2'; // עלייה במספר הזה = כולם יתבקשו להתחבר מחדש פעם אחת (למשל אחרי הפעלת קוד אישי)
 async function checkTeamAccess(){
-  if(localStorage.getItem('team_access_granted')==='yes'){
+  const authVersionOk = localStorage.getItem('auth_version') === REQUIRED_AUTH_VERSION;
+  if(localStorage.getItem('team_access_granted')==='yes' && authVersionOk){
     // תיקון אוטומטי חד-פעמי: אם המייל השמור שייך למנהל אבל התפקיד עוד לא עודכן (התחברות מלפני התכונה הזו) - נעדכן בשקט
     const savedEmail = (localStorage.getItem('team_access_email')||'').toLowerCase();
     if(MANAGER_ACCESS_EMAILS.includes(savedEmail) && localStorage.getItem('access_role') !== 'manager'){
@@ -3675,6 +3677,7 @@ async function checkTeamAccess(){
     loadWeek();
     setupRealtime();
   } else {
+    localStorage.removeItem('team_access_granted'); // מכריח כניסה מחדש דרך המסלול המלא (כולל בדיקת קוד אם קיים)
     document.getElementById('access-code-input').focus();
   }
 }
@@ -3727,6 +3730,7 @@ function submitTeamAccessPin(){
 }
 function finishTeamAccess(email, role){
   localStorage.setItem('team_access_granted', 'yes');
+  localStorage.setItem('auth_version', REQUIRED_AUTH_VERSION);
   localStorage.setItem('team_access_email', email);
   localStorage.setItem('access_role', role);
   accessRole = role;
