@@ -366,7 +366,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-100';
+const APP_VERSION = '2026-07-13-101';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2781,9 +2781,10 @@ function renderConstraints(){
     const row = constraintsData.find(c=>c.worker_id===selectedConstraintWorker && c.day_of_week===day.i);
     const status = row ? (row.status||'available') : 'available';
     const note = row ? (row.note||'') : '';
+    const privateNote = (accessRole==='manager' && row) ? (row.private_note||'') : '';
     const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
     html += `<div class="constraint-pill ${st.cls}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.75"'}>
-      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}
+      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}${privateNote?`<br><span class="cdate" style="direction:rtl;color:#6D28D9">🔒 ${privateNote}</span>`:''}
     </div>`;
   });
   html += `</div>`;
@@ -2873,11 +2874,14 @@ async function pickConstraintStatus(status){
   } else if(status==='blocked' || status==='sick'){
     note = '';
   }
+  let private_note = existing ? (existing.private_note||'') : '';
+  const enteredPrivate = prompt('פירוט פרטי לגבי היום הזה (לא חובה) - זה יוצג רק למנהל, אף אחד אחר לא יראה:', private_note);
+  if(enteredPrivate!==null) private_note = enteredPrivate.trim();
   if(existing){
-    await sb.from('constraints').update({status, note, available: status!=='blocked'}).eq('id',existing.id);
-    existing.status = status; existing.note = note; existing.available = status!=='blocked';
+    await sb.from('constraints').update({status, note, private_note, available: status!=='blocked'}).eq('id',existing.id);
+    existing.status = status; existing.note = note; existing.private_note = private_note; existing.available = status!=='blocked';
   } else {
-    const {data} = await sb.from('constraints').insert({week_start:nextWeekStart, worker_id:selectedConstraintWorker, day_of_week:day, status, note, available: status!=='blocked'}).select();
+    const {data} = await sb.from('constraints').insert({week_start:nextWeekStart, worker_id:selectedConstraintWorker, day_of_week:day, status, note, private_note, available: status!=='blocked'}).select();
     if(data) constraintsData.push(data[0]);
   }
   closePopup();
