@@ -367,7 +367,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-104';
+const APP_VERSION = '2026-07-13-105';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1672,6 +1672,10 @@ function renderMaDuty(){
 function renderMaVacations(){
   const myId = getCurrentWorkerId();
   return renderMaHeader(myId, '') + `<div style="padding:0 4px">
+    <div class="ma-section-title" style="margin-top:0">לוח חופשות ומחלות של הצוות</div>
+    <div class="ma-card" style="border-right-color:#12141c;padding:10px">
+      ${renderCalendar()}
+    </div>
     <div class="ma-section-title">בקשת חופשה חדשה</div>
     <div class="ma-card" style="border-right-color:#12141c">
       <div class="field"><label>מתאריך</label><input type="date" id="ma-vac-from" style="width:100%;margin-top:4px"></div>
@@ -1679,12 +1683,6 @@ function renderMaVacations(){
       <div class="field" style="margin-top:8px"><label>הערה (לא חובה)</label><input type="text" id="ma-vac-note" placeholder="סיבה..." style="width:100%;margin-top:4px"></div>
       <button class="ma-newreq-btn" style="margin-top:12px;margin-bottom:0" onclick="submitMaVacation()">שלח בקשה</button>
     </div>
-    <div class="ma-section-title">חופשות מאושרות של הצוות</div>
-    ${vacationRequests.filter(v=>v.status==='approved').sort((a,b)=>a.from_date.localeCompare(b.from_date)).map(v=>`
-      <div class="ma-team-card">
-        <div class="ma-team-name">${workerName(v.worker_id)||'—'}</div>
-        <div class="sub" style="font-size:12px">${v.from_date}${v.from_date!==v.to_date?' עד '+v.to_date:''}</div>
-      </div>`).join('') || `<div class="ma-empty">אין חופשות מאושרות כרגע</div>`}
   </div>`;
 }
 async function submitMaVacation(){
