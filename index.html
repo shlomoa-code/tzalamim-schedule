@@ -367,7 +367,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-102';
+const APP_VERSION = '2026-07-13-104';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1420,6 +1420,7 @@ function renderMobileApp(){
   let screenHtml = '';
   if(mobileAppTab==='home') screenHtml = renderMaHome(myId);
   else if(mobileAppTab==='team') screenHtml = renderMaTeam();
+  else if(mobileAppTab==='duty') screenHtml = renderMaDuty();
   else if(mobileAppTab==='requests') screenHtml = renderMaRequests(myId);
   else if(mobileAppTab==='vacations') screenHtml = renderMaVacations();
   wrap.innerHTML = screenHtml + renderMaBottomNav();
@@ -1428,6 +1429,7 @@ function renderMaBottomNav(){
   const items = [
     {id:'home', icon:'🏠', label:'שלי'},
     {id:'team', icon:'👥', label:'הצוות'},
+    {id:'duty', icon:'🌓', label:'תורנות'},
     {id:'requests', icon:'✏️', label:'בקשות'},
     {id:'vacations', icon:'📅', label:'חופשות'}
   ];
@@ -1638,6 +1640,33 @@ function renderMaRequests(myId){
     <button class="ma-newreq-btn" onclick="mobileAppTab='vacations';render()">➕ בקשת חופשה חדשה</button>
     <div class="ma-section-title">בקשות החופשה שלי</div>
     ${body}
+  </div>`;
+}
+function renderMaDuty(){
+  const todayStr = dateStr(new Date());
+  const upcoming = dutyRoster.filter(d=>d.duty_date>=todayStr);
+  const cards = upcoming.map(d=>{
+    const taLine = d.ta2
+      ? `<span class="duty-original">${d.ta1||'—'}</span> → <span class="duty-replace">${d.ta2}</span>`
+      : (d.ta1 || '—');
+    const jerLine = d.jerusalem2
+      ? `<span class="duty-original">${d.jerusalem1||'—'}</span> → <span class="duty-replace">${d.jerusalem2}</span>`
+      : (d.jerusalem1 || '—');
+    return `<div class="ma-card">
+      <div class="ma-card-top">
+        <span class="ma-card-day">${d.day_label||''}</span>
+        <span class="ma-card-date">${d.duty_date.slice(8,10)}/${d.duty_date.slice(5,7)}</span>
+      </div>
+      <div class="ma-card-region" style="margin-top:6px">ת"א: ${taLine}</div>
+      <div class="ma-card-region">ירושלים: ${jerLine}</div>
+    </div>`;
+  }).join('');
+  return `<div class="ma-header" style="border-radius:0 0 18px 18px;padding:16px 16px 14px">
+    <div class="ma-greeting" style="font-size:18px">תורנות שישי-שבת-חגים</div>
+    <div class="ma-subdate">שם בכחול = שובץ במקור · שם בכתום = החלפה בפועל</div>
+  </div>
+  <div style="padding:0 4px">
+    ${cards || `<div class="ma-empty">אין תורנויות קרובות</div>`}
   </div>`;
 }
 function renderMaVacations(){
