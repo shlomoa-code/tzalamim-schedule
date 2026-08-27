@@ -367,7 +367,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-105';
+const APP_VERSION = '2026-07-13-106';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2424,6 +2424,16 @@ async function updateTopline(day, id, value){
         if(idx!==-1) toplineLog[idx] = logData[0]; else toplineLog.push(logData[0]);
       }
     }catch(e){ console.error('topline log sync failed', e); }
+  } else {
+    // ההערה בסידור נמחקה - מוחקים גם את הרשומה שנוצרה אוטומטית ביומן עבור אותו יום (לא נוגעים ברשומות שהוזנו ידנית)
+    const logDate = dateForDay(day);
+    const existingAuto = toplineLog.find(l=>l.log_date===logDate && l.source==='auto');
+    if(existingAuto){
+      try{
+        await sb.from('topline_log').delete().eq('id', existingAuto.id);
+        toplineLog = toplineLog.filter(l=>l.id!==existingAuto.id);
+      }catch(e){ console.error('topline log auto-delete failed', e); }
+    }
   }
 }
 
