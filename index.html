@@ -367,7 +367,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-106';
+const APP_VERSION = '2026-07-13-108';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2519,7 +2519,8 @@ function renderWorkers(){
     </div>`;
   const freeChip = f => `<div class="wchip ${f.active?'':'inactive'}">
       <span>👤 ${f.name}</span>
-      ${editMode?`<button class="btn btn-sm btn-danger" onclick="deleteFreelancer('${f.id}')">מחק</button>`:''}
+      ${editMode?`<button class="btn btn-sm" onclick="editFreelancer('${f.id}')">ערוך</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteFreelancer('${f.id}')">מחק</button>`:''}
     </div>`;
   return `<div class="workers-list">
     <div class="wgroup">
@@ -2586,6 +2587,17 @@ async function deleteFreelancer(id){
   freelancers = freelancers.filter(f=>f.id!==id);
   render();
 }
+async function editFreelancer(id){
+  const f = freelancers.find(x=>x.id===id);
+  if(!f) return;
+  const newName = prompt('שם הפרילנס:', f.name);
+  if(newName===null) return;
+  const name = newName.trim();
+  if(!name) return;
+  await sb.from('freelancers').update({name}).eq('id',id);
+  f.name = name;
+  render();
+}
 async function addWorker(type){
   const inputId = type==='photographer' ? 'new-photog' : 'new-recorder';
   const emailId = type==='photographer' ? 'new-photog-email' : 'new-recorder-email';
@@ -2627,10 +2639,15 @@ async function editWorker(id){
   if(newName===null) return;
   const newEmail = prompt('מייל (אפשר להשאיר ריק):', w.email||'');
   if(newEmail===null) return;
+  const currentTypeHe = w.type==='recorder' ? 'מקליט' : 'צלם';
+  const newTypeHe = prompt('תפקיד - הקלד "צלם" או "מקליט":', currentTypeHe);
+  if(newTypeHe===null) return;
   const name = newName.trim() || w.name;
   const email = newEmail.trim();
-  await sb.from('workers').update({name, email}).eq('id',id);
-  w.name = name; w.email = email;
+  const t = newTypeHe.trim();
+  const type = t==='מקליט' ? 'recorder' : (t==='צלם' ? 'photographer' : w.type);
+  await sb.from('workers').update({name, email, type}).eq('id',id);
+  w.name = name; w.email = email; w.type = type;
   render();
 }
 async function deleteWorker(id){
