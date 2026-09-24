@@ -367,7 +367,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-108';
+const APP_VERSION = '2026-07-13-109';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2810,7 +2810,7 @@ function renderConstraints(){
     return html;
   }
   html += `<div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
-  const windowOpen = editMode || isConstraintsWindowOpenForWeek(dateStr(nextSunday));
+  const windowOpen = accessRole==='manager' || editMode || isConstraintsWindowOpenForWeek(dateStr(nextSunday));
   if(!windowOpen){
     html += `<div style="background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px">🔒 ההגשה לשבוע הזה ננעלה (המועד היה עד יום חמישי 11:00). אפשר לצפות בלבד, ולסמן עבור שבועות מאוחרים יותר.</div>`;
   }
@@ -2910,7 +2910,7 @@ function openConstraintPopup(day){
 }
 async function pickConstraintStatus(status){
   const nextWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  if(!editMode && !isConstraintsWindowOpenForWeek(nextWeekStart)){
+  if(accessRole!=='manager' && !editMode && !isConstraintsWindowOpenForWeek(nextWeekStart)){
     alert('ההגשה לשבוע הזה כבר ננעלה (המועד היה עד יום חמישי 11:00).');
     closePopup();
     return;
