@@ -283,6 +283,9 @@ h1{font-size:19px;font-weight:600}
 .overview-cell.must-pm{background:#C47A00;color:#fff}
 .overview-cell.sick{background:#F1E6FB;color:#6D28D9}
 .overview-cell.comp-day{background:#E1F5EE;color:#0F6E56}
+.overview-cell.on-vacation{background:#DCEBFB;color:#1A6FBF}
+.overview-cell.on-sick-vacation{background:#F6DCE0;color:#A32D2D}
+.constraint-pill.vacation-flag{outline:2px solid #1A6FBF;outline-offset:1px}
 .duty-original{color:var(--blue);font-weight:700}
 .duty-replace{color:var(--amber);font-weight:700}
 
@@ -367,7 +370,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-07-13-109';
+const APP_VERSION = '2026-10-01-110';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -714,6 +717,18 @@ function isConstraintsWindowOpenForWeek(weekStartDateStr){
   deadline.setDate(deadline.getDate() - 3);
   deadline.setHours(11,0,0,0);
   return getTrustedNow() < deadline;
+}
+// חופשות/מחלות מאושרות שחלות על יום נתון, כדי להציג אותן על גבי לוח האילוצים
+function approvedVacationForWorkerOnDate(workerId, ds){
+  return vacationRequests.find(v=>v.status==='approved' && v.worker_id===workerId && v.from_date<=ds && v.to_date>=ds);
+}
+// כל החופשות המאושרות (לא מחלה) שחופפות לשבוע הנתון - להצגה כחלק מלוח האילוצים
+function getApprovedVacationersForWeek(weekStartDateStr){
+  const start = new Date(weekStartDateStr);
+  const end = new Date(start); end.setDate(end.getDate()+6);
+  const endStr = dateStr(end);
+  return vacationRequests.filter(v=>v.status==='approved' && v.req_type!=='sick' && v.from_date<=endStr && v.to_date>=weekStartDateStr)
+    .sort((a,b)=>a.from_date.localeCompare(b.from_date));
 }
 let accessRole = localStorage.getItem('access_role') || 'full';
 let constraintsWeekOffset = 1;
@@ -1604,10 +1619,15 @@ function renderMaRequests(myId){
     const status = row ? (row.status||'available') : 'available';
     const note = row ? (row.note||'') : '';
     const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
-    return `<div class="constraint-pill ${st.cls}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.6"'}>
-      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}
+    const vac = approvedVacationForWorkerOnDate(myId, ds);
+    const vacFlag = vac ? `<br><span class="cdate" style="direction:rtl;color:#1A6FBF">${vac.req_type==='sick'?'🤒 מחלה מאושרת':'🏖️ בחופשה מאושרת'}</span>` : '';
+    return `<div class="constraint-pill ${st.cls}${vac?' vacation-flag':''}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.6"'}>
+      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}${vacFlag}
     </div>`;
   }).join('');
+
+  const weekVacationers = getApprovedVacationersForWeek(dateStr(nextSunday));
+  const vacationBannerHtml = weekVacationers.length ? `<div class="ma-empty" style="padding:8px 0;font-size:12px;color:#1A6FBF">🏖️ בחופשה מאושרת בשבוע זה: ${weekVacationers.map(v=>workerName(v.worker_id)||'—').join(', ')}</div>` : '';
 
   const myVacations = vacationRequests.filter(v=>v.worker_id===myId).sort((a,b)=>b.created_at.localeCompare(a.created_at));
 
@@ -1636,6 +1656,7 @@ function renderMaRequests(myId){
       <div class="ma-week-btn" onclick="changeConstraintsWeek(-1)">שבוע קודם ◀</div>
     </div>
     ${!windowOpen?`<div class="ma-empty" style="padding:8px 0;font-size:12px">🔒 ההגשה לשבוע הזה ננעלה (המועד היה עד יום חמישי 11:00)</div>`:''}
+    ${vacationBannerHtml}
     <div class="constraint-days" style="margin-bottom:18px">${constraintPills}</div>
     <button class="ma-newreq-btn" onclick="mobileAppTab='vacations';render()">➕ בקשת חופשה חדשה</button>
     <div class="ma-section-title">בקשות החופשה שלי</div>
@@ -2804,12 +2825,16 @@ function renderConstraints(){
     <span class="week-label" style="margin:0 8px">${fmtWeekLabel(nextSunday)}</span>
     <button class="btn btn-sm" onclick="changeConstraintsWeek(1)">▶</button>
   </div>`;
+  const weekVacationers = getApprovedVacationersForWeek(dateStr(nextSunday));
+  const vacationBannerHtml = weekVacationers.length ? `<div style="background:#E6F1FB;color:#1A6FBF;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px">🏖️ בחופשה מאושרת בשבוע זה: ${weekVacationers.map(v=>`<b>${workerName(v.worker_id)||'—'}</b> (${v.from_date.slice(8,10)}/${v.from_date.slice(5,7)}–${v.to_date.slice(8,10)}/${v.to_date.slice(5,7)})`).join(', ')}</div>` : '';
   if(accessRole==='producer'){
     html += `<div class="sub" style="margin-bottom:10px">תצוגת צפייה - סיכום האילוצים של הצוות לשבוע הנבחר.</div>`;
+    html += vacationBannerHtml;
     html += renderConstraintsOverview();
     return html;
   }
   html += `<div class="sub" style="margin-bottom:10px">כל עובד בוחר את שמו ומסמן סטטוס לכל יום בשבוע שנבחר למעלה. אפשר לנווט קדימה למספר שבועות ולמלא מראש.</div>`;
+  html += vacationBannerHtml;
   const windowOpen = accessRole==='manager' || editMode || isConstraintsWindowOpenForWeek(dateStr(nextSunday));
   if(!windowOpen){
     html += `<div style="background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px">🔒 ההגשה לשבוע הזה ננעלה (המועד היה עד יום חמישי 11:00). אפשר לצפות בלבד, ולסמן עבור שבועות מאוחרים יותר.</div>`;
@@ -2839,8 +2864,10 @@ function renderConstraints(){
     const note = row ? (row.note||'') : '';
     const privateNote = (accessRole==='manager' && row) ? (row.private_note||'') : '';
     const st = CONSTRAINT_STATUSES.find(s=>s.id===status) || CONSTRAINT_STATUSES[0];
-    html += `<div class="constraint-pill ${st.cls}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.75"'}>
-      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}${privateNote?`<br><span class="cdate" style="direction:rtl;color:#6D28D9">🔒 ${privateNote}</span>`:''}
+    const vac = approvedVacationForWorkerOnDate(selectedConstraintWorker, ds);
+    const vacFlag = vac ? `<br><span class="cdate" style="direction:rtl;color:#1A6FBF">${vac.req_type==='sick'?'🤒 מחלה מאושרת':'🏖️ בחופשה מאושרת'}</span>` : '';
+    html += `<div class="constraint-pill ${st.cls}${vac?' vacation-flag':''}" ${windowOpen?`onclick="openConstraintPopup(${day.i})"`:'style="cursor:not-allowed;opacity:0.75"'}>
+      ${day.label}<span class="cdate">${ds.slice(8,10)}/${ds.slice(5,7)}</span><br>${st.label}${note?`<br><span class="cdate" style="direction:rtl">${note}</span>`:''}${privateNote?`<br><span class="cdate" style="direction:rtl;color:#6D28D9">🔒 ${privateNote}</span>`:''}${vacFlag}
     </div>`;
   });
   html += `</div>`;
@@ -2862,6 +2889,14 @@ function renderConstraintsOverview(){
   const rowHtml = w=>{
     let cells = '';
     DAYS.forEach(day=>{
+      const d = new Date(nextSunday); d.setDate(d.getDate()+day.i);
+      const ds = dateStr(d);
+      const vac = approvedVacationForWorkerOnDate(w.id, ds);
+      if(vac){
+        const isSick = vac.req_type==='sick';
+        cells += `<td class="day-cell overview-cell ${isSick?'on-sick-vacation':'on-vacation'}">${isSick?'🤒 מחלה':'🏖️ חופשה'}</td>`;
+        return;
+      }
       const row = constraintsData.find(c=>c.worker_id===w.id && c.day_of_week===day.i);
       const status = row ? (row.status||'available') : 'available';
       const note = row ? (row.note||'') : '';
