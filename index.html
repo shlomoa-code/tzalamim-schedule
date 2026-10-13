@@ -371,7 +371,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-10-13-113';
+const APP_VERSION = '2026-10-13-114';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -2060,6 +2060,25 @@ function snapFreelanceName(value){
   if(cands.length===1 && confirm('התכוונת ל"'+cands[0].name+'"?\n(הקלדת "'+v+'")\n\nאישור = לתקן לשם מהרשימה')) return cands[0].name;
   return value;
 }
+// מחליף שם פרילנס בכל השיבוצים בכל השבועות (בהתעלמות מרווחים/תווים נסתרים), ומחזיר דוח
+async function replaceFreelanceNameEverywhere(oldName, newName){
+  const specs = [['shifts','freelance_name'],['shifts','freelance_recorder_name'],['magazine_teams','freelance_photographer_name'],['magazine_teams','freelance_recorder_name']];
+  const key = x=>(x||'').replace(/[^\u05D0-\u05EAa-zA-Z]/g,'');
+  const oldKey = key(oldName);
+  let found = 0, updated = 0; const errors = [];
+  for(const [table,col] of specs){
+    const rows = await fetchAllRows(table, 'id,'+col);
+    const ids = rows.filter(r=>r[col] && key(r[col])===oldKey && r[col]!==newName).map(r=>r.id);
+    found += ids.length;
+    for(let i=0;i<ids.length;i+=100){
+      const chunk = ids.slice(i,i+100);
+      const {data, error} = await sb.from(table).update({[col]:newName}).in('id', chunk).select('id');
+      if(error) errors.push(table+'.'+col+': '+error.message);
+      else updated += (data||[]).length;
+    }
+  }
+  return {found, updated, errors};
+}
 async function mergeFreelancer(id){
   const bad = freelancers.find(x=>x.id===id);
   if(!bad) return;
@@ -2068,15 +2087,17 @@ async function mergeFreelancer(id){
   if(target===null || !target.trim()) return;
   const good = others.find(x=>x.name===target.trim());
   if(!good){ alert('לא מצאתי ברשימה שם בדיוק כזה: '+target.trim()); return; }
-  const cols = [['shifts','freelance_name'],['shifts','freelance_recorder_name'],['magazine_teams','freelance_photographer_name'],['magazine_teams','freelance_recorder_name']];
-  for(const [table,col] of cols){
-    try{ await sb.from(table).update({[col]:good.name}).eq(col, bad.name); }catch(e){ console.error(e); }
+  setSync(true,'ממזג...');
+  const res = await replaceFreelanceNameEverywhere(bad.name, good.name);
+  if(res.errors.length || res.updated < res.found){
+    alert('המיזוג לא הושלם: נמצאו '+res.found+' שיבוצים, עודכנו '+res.updated+'.\n'+res.errors.join('\n')+'\n\nהשם לא נמחק מהרשימה. שלח לי את ההודעה הזו.');
+    await loadWeek();
+    return;
   }
   await sb.from('freelancers').delete().eq('id', bad.id);
   freelancers = freelancers.filter(x=>x.id!==bad.id);
-  shifts.forEach(x=>{ if(x.freelance_name===bad.name) x.freelance_name=good.name; if(x.freelance_recorder_name===bad.name) x.freelance_recorder_name=good.name; });
-  magTeams.forEach(t=>{ if(t.freelance_photographer_name===bad.name) t.freelance_photographer_name=good.name; if(t.freelance_recorder_name===bad.name) t.freelance_recorder_name=good.name; });
-  alert('מוזג: "'+bad.name+'" ← "'+good.name+'"');
+  alert('מוזג: "'+bad.name+'" ← "'+good.name+'"\nעודכנו '+res.updated+' שיבוצים בכל השבועות.');
+  await loadWeek();
   render();
 }
 async function updateShift(id, field, value){
@@ -2661,16 +2682,11 @@ async function editFreelancer(id){
   if(name===oldName) return;
   await sb.from('freelancers').update({name}).eq('id',id);
   f.name = name;
-  // מעדכנים גם את כל השיבוצים הקיימים (בכל השבועות) שנשמרו בשם הישן, כדי שהתיקון יחול בכל מקום
-  const updates = [
-    ['shifts','freelance_name'], ['shifts','freelance_recorder_name'],
-    ['magazine_teams','freelance_photographer_name'], ['magazine_teams','freelance_recorder_name']
-  ];
-  for(const [table,col] of updates){
-    try{ await sb.from(table).update({[col]:name}).eq(col, oldName); }catch(e){ console.error('rename propagate failed', table, col, e); }
-  }
-  shifts.forEach(s=>{ if(s.freelance_name===oldName) s.freelance_name=name; if(s.freelance_recorder_name===oldName) s.freelance_recorder_name=name; });
-  magTeams.forEach(t=>{ if(t.freelance_photographer_name===oldName) t.freelance_photographer_name=name; if(t.freelance_recorder_name===oldName) t.freelance_recorder_name=name; });
+  // מעדכנים גם את כל השיבוצים הקיימים (בכל השבועות) שנשמרו בשם הישן
+  setSync(true,'מעדכן שיבוצים...');
+  const res = await replaceFreelanceNameEverywhere(oldName, name);
+  if(res.errors.length || res.updated < res.found) alert('חלק מהשיבוצים לא עודכנו: נמצאו '+res.found+', עודכנו '+res.updated+'.\n'+res.errors.join('\n'));
+  await loadWeek();
   render();
 }
 async function addWorker(type){
