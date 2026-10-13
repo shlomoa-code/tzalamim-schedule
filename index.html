@@ -357,6 +357,7 @@ h1{font-size:19px;font-weight:600}
   </div>
 
   <div class="tabs" id="tabs"></div>
+  <datalist id="freelancers-dl"></datalist>
   <div id="content"></div>
   <div id="mobile-app"></div>
 </div>
@@ -370,7 +371,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-10-01-110';
+const APP_VERSION = '2026-10-13-113';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -1066,6 +1067,7 @@ function useMobileApp(){
   return isMobileView() && accessRole==='full' && !editMode;
 }
 function render(){
+  try{ const dl=document.getElementById('freelancers-dl'); if(dl) dl.innerHTML = freelancers.filter(f=>f.active!==false).map(f=>`<option value="${String(f.name).replace(/"/g,'&quot;')}"></option>`).join(''); }catch(e){}
   if(useMobileApp()){
     document.querySelector('.topbar').style.display = 'none';
     document.getElementById('tabs').style.display = 'none';
@@ -1154,7 +1156,7 @@ function shiftCardHtml(s){
     ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}<button onclick="clearShiftSick('${s.id}','photographer')">✕ בטל</button></div>`:''}
     <div class="worker-pill ${displayName?'filled':'empty'}" onclick="openWorkerPopup('shift','${s.id}','photographer')">${displayName||(sickName?'+ שבץ מחליף':'+ שבץ')}</div>
     <div style="display:flex;gap:3px">
-      <input class="freelance-input" style="flex:1" placeholder="או הקלד שם פרילנס" value="${s.freelance_name==='?'?'':(s.freelance_name||'')}" onchange="updateShift('${s.id}','freelance_name',this.value)">
+      <input class="freelance-input" list="freelancers-dl" style="flex:1" placeholder="או הקלד שם פרילנס" value="${s.freelance_name==='?'?'':(s.freelance_name||'')}" onchange="updateShift('${s.id}','freelance_name',this.value)">
       <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('shift','${s.id}','photographer')">❓</button>
     </div>
     ${s.worker_id && !sickName ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markShiftSick('${s.id}','photographer')">🤒 סמן מחלה</button>` : ''}
@@ -1162,7 +1164,7 @@ function shiftCardHtml(s){
     ${sickRName?`<div class="sick-badge">🤒 מחלה: ${sickRName}<button onclick="clearShiftSick('${s.id}','recorder')">✕ בטל</button></div>`:''}
     <div class="worker-pill ${rname?'filled':'empty'}" onclick="openWorkerPopup('shift','${s.id}','recorder')">${rname||(sickRName?'+ שבץ מחליף':'+ הוסף מקליט')}</div>
     <div style="display:flex;gap:3px">
-      <input class="freelance-input" style="flex:1" placeholder="או הקלד שם פרילנס" value="${s.freelance_recorder_name==='?'?'':(s.freelance_recorder_name||'')}" onchange="updateShift('${s.id}','freelance_recorder_name',this.value)">
+      <input class="freelance-input" list="freelancers-dl" style="flex:1" placeholder="או הקלד שם פרילנס" value="${s.freelance_recorder_name==='?'?'':(s.freelance_recorder_name||'')}" onchange="updateShift('${s.id}','freelance_recorder_name',this.value)">
       <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('shift','${s.id}','recorder')">❓</button>
     </div>
     ${s.recorder_id && !sickRName ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markShiftSick('${s.id}','recorder')">🤒 סמן מחלה</button>` : ''}
@@ -1197,7 +1199,7 @@ function teamCardHtml(t){
     ${sickP?`<div class="sick-badge">🤒 ${sickP}<button onclick="clearTeamSick('${t.id}','photographer')">✕</button></div>`:''}
     <div class="worker-pill ${pname?'filled':'empty'}" onclick="openWorkerPopup('team','${t.id}','photographer')">${pname||(sickP?'+ מחליף':'+ בחר')}</div>
     <div style="display:flex;gap:3px">
-      <input class="freelance-input" style="flex:1" placeholder="פרילנס" value="${t.freelance_photographer_name==='?'?'':(t.freelance_photographer_name||'')}" onchange="updateTeam('${t.id}','freelance_photographer_name',this.value)">
+      <input class="freelance-input" list="freelancers-dl" style="flex:1" placeholder="פרילנס" value="${t.freelance_photographer_name==='?'?'':(t.freelance_photographer_name||'')}" onchange="updateTeam('${t.id}','freelance_photographer_name',this.value)">
       <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('team','${t.id}','photographer')">❓</button>
     </div>
     ${t.photographer_id && !sickP ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','photographer')">🤒 מחלה</button>` : ''}
@@ -1205,7 +1207,7 @@ function teamCardHtml(t){
     ${sickR?`<div class="sick-badge">🤒 ${sickR}<button onclick="clearTeamSick('${t.id}','recorder')">✕</button></div>`:''}
     <div class="worker-pill ${rname?'filled':'empty'}" onclick="openWorkerPopup('team','${t.id}','recorder')">${rname||(sickR?'+ מחליף':'+ בחר')}</div>
     <div style="display:flex;gap:3px">
-      <input class="freelance-input" style="flex:1" placeholder="פרילנס" value="${t.freelance_recorder_name==='?'?'':(t.freelance_recorder_name||'')}" onchange="updateTeam('${t.id}','freelance_recorder_name',this.value)">
+      <input class="freelance-input" list="freelancers-dl" style="flex:1" placeholder="פרילנס" value="${t.freelance_recorder_name==='?'?'':(t.freelance_recorder_name||'')}" onchange="updateTeam('${t.id}','freelance_recorder_name',this.value)">
       <button class="btn btn-sm" title="סמן לשיבוץ מאוחר יותר" onclick="markPlaceholder('team','${t.id}','recorder')">❓</button>
     </div>
     ${t.recorder_id && !sickR ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','recorder')">🤒 מחלה</button>` : ''}
@@ -2006,7 +2008,7 @@ function renderRegion(regionKey){
         }
         ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}${editMode?`<button onclick="clearSick('${s.id}')">✕ בטל</button>`:''}</div>`:''}
         <div class="worker-pill ${displayName?'filled':'empty'}" ${editMode?`onclick="openWorkerPopup('shift','${s.id}','photographer')"`:''}>${displayName||(sickName?'+ שבץ מחליף':'+ שבץ צלם')}</div>
-        ${editMode?`<input class="freelance-input" placeholder="או הקלד שם פרילנס" value="${s.freelance_name||''}" onchange="updateShift('${s.id}','freelance_name',this.value)">`:''}
+        ${editMode?`<input class="freelance-input" list="freelancers-dl" placeholder="או הקלד שם פרילנס" value="${s.freelance_name||''}" onchange="updateShift('${s.id}','freelance_name',this.value)">`:''}
         ${editMode && s.worker_id && !sickName ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markSick('${s.id}')">🤒 סמן מחלה</button>` : ''}
       </div>`;
     });
@@ -2036,6 +2038,45 @@ async function deleteShift(id){
   if(!confirm('למחוק את המשמרת?')) return;
   await sb.from('shifts').delete().eq('id',id);
   shifts = shifts.filter(s=>s.id!==id);
+  render();
+}
+// מתקן אוטומטית שם פרילנס שהוקלד עם טעות קטנה (אותיות הפוכות / אות אחת שונה) לשם שברשימה
+function snapFreelanceName(value){
+  const v = (value||'').trim();
+  if(!v || v==='?') return value;
+  if(freelancers.some(f=>f.name===v)) return v;
+  const norm = x=>x.replace(/[^\u05D0-\u05EAa-zA-Z ]/g,'').trim();
+  const nv = norm(v);
+  const sortedLetters = x=>norm(x).replace(/ /g,'').split('').sort().join('');
+  const cands = freelancers.filter(f=>{
+    const nf = norm(f.name);
+    if(nf===nv) return true;
+    if(nf.length===nv.length && sortedLetters(f.name)===sortedLetters(v)){
+      let diff=0; for(let i=0;i<nf.length;i++) if(nf[i]!==nv[i]) diff++;
+      return diff<=2;
+    }
+    return false;
+  });
+  if(cands.length===1 && confirm('התכוונת ל"'+cands[0].name+'"?\n(הקלדת "'+v+'")\n\nאישור = לתקן לשם מהרשימה')) return cands[0].name;
+  return value;
+}
+async function mergeFreelancer(id){
+  const bad = freelancers.find(x=>x.id===id);
+  if(!bad) return;
+  const others = freelancers.filter(x=>x.id!==id);
+  const target = prompt('"'+bad.name+'" הוא כתיב שגוי?\nהקלד את השם הנכון בדיוק כפי שהוא מופיע ברשימה.\nכל השיבוצים של "'+bad.name+'" יועברו אליו, והכפילות תימחק מהרשימה.', '');
+  if(target===null || !target.trim()) return;
+  const good = others.find(x=>x.name===target.trim());
+  if(!good){ alert('לא מצאתי ברשימה שם בדיוק כזה: '+target.trim()); return; }
+  const cols = [['shifts','freelance_name'],['shifts','freelance_recorder_name'],['magazine_teams','freelance_photographer_name'],['magazine_teams','freelance_recorder_name']];
+  for(const [table,col] of cols){
+    try{ await sb.from(table).update({[col]:good.name}).eq(col, bad.name); }catch(e){ console.error(e); }
+  }
+  await sb.from('freelancers').delete().eq('id', bad.id);
+  freelancers = freelancers.filter(x=>x.id!==bad.id);
+  shifts.forEach(x=>{ if(x.freelance_name===bad.name) x.freelance_name=good.name; if(x.freelance_recorder_name===bad.name) x.freelance_recorder_name=good.name; });
+  magTeams.forEach(t=>{ if(t.freelance_photographer_name===bad.name) t.freelance_photographer_name=good.name; if(t.freelance_recorder_name===bad.name) t.freelance_recorder_name=good.name; });
+  alert('מוזג: "'+bad.name+'" ← "'+good.name+'"');
   render();
 }
 async function updateShift(id, field, value){
@@ -2105,12 +2146,12 @@ function renderMagazines(){
           <span class="team-role">צלם</span>
           ${sickP?`<div class="sick-badge">🤒 מחלה: ${sickP}${editMode?`<button onclick="clearTeamSick('${t.id}','photographer')">✕ בטל</button>`:''}</div>`:''}
           <div class="worker-pill ${pname?'filled':'empty'}" ${editMode?`onclick="openWorkerPopup('team','${t.id}','photographer')"`:''}>${pname||(sickP?'+ שבץ מחליף':'+ בחר צלם')}</div>
-          ${editMode?`<input class="freelance-input" placeholder="או הקלד שם פרילנס" value="${t.freelance_photographer_name||''}" onchange="updateTeam('${t.id}','freelance_photographer_name',this.value)">`:''}
+          ${editMode?`<input class="freelance-input" list="freelancers-dl" placeholder="או הקלד שם פרילנס" value="${t.freelance_photographer_name||''}" onchange="updateTeam('${t.id}','freelance_photographer_name',this.value)">`:''}
           ${editMode && t.photographer_id && !sickP ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','photographer')">🤒 סמן מחלה</button>` : ''}
           <span class="team-role">מקליט</span>
           ${sickR?`<div class="sick-badge">🤒 מחלה: ${sickR}${editMode?`<button onclick="clearTeamSick('${t.id}','recorder')">✕ בטל</button>`:''}</div>`:''}
           <div class="worker-pill ${rname?'filled':'empty'}" ${editMode?`onclick="openWorkerPopup('team','${t.id}','recorder')"`:''}>${rname||(sickR?'+ שבץ מחליף':'+ בחר מקליט')}</div>
-          ${editMode?`<input class="freelance-input" placeholder="או הקלד שם פרילנס" value="${t.freelance_recorder_name||''}" onchange="updateTeam('${t.id}','freelance_recorder_name',this.value)">`:''}
+          ${editMode?`<input class="freelance-input" list="freelancers-dl" placeholder="או הקלד שם פרילנס" value="${t.freelance_recorder_name||''}" onchange="updateTeam('${t.id}','freelance_recorder_name',this.value)">`:''}
           ${editMode && t.recorder_id && !sickR ? `<button class="btn btn-sm btn-danger mark-sick-btn" onclick="markTeamSick('${t.id}','recorder')">🤒 סמן מחלה</button>` : ''}
           ${editMode
             ? `<input placeholder="כתב" value="${t.reporter_name||''}" onchange="updateTeam('${t.id}','reporter_name',this.value)">
@@ -2541,6 +2582,7 @@ function renderWorkers(){
   const freeChip = f => `<div class="wchip ${f.active?'':'inactive'}">
       <span>👤 ${f.name}</span>
       ${editMode?`<button class="btn btn-sm" onclick="editFreelancer('${f.id}')">ערוך</button>
+      <button class="btn btn-sm" onclick="mergeFreelancer('${f.id}')">מזג לשם נכון</button>
       <button class="btn btn-sm btn-danger" onclick="deleteFreelancer('${f.id}')">מחק</button>`:''}
     </div>`;
   return `<div class="workers-list">
@@ -2615,8 +2657,20 @@ async function editFreelancer(id){
   if(newName===null) return;
   const name = newName.trim();
   if(!name) return;
+  const oldName = f.name;
+  if(name===oldName) return;
   await sb.from('freelancers').update({name}).eq('id',id);
   f.name = name;
+  // מעדכנים גם את כל השיבוצים הקיימים (בכל השבועות) שנשמרו בשם הישן, כדי שהתיקון יחול בכל מקום
+  const updates = [
+    ['shifts','freelance_name'], ['shifts','freelance_recorder_name'],
+    ['magazine_teams','freelance_photographer_name'], ['magazine_teams','freelance_recorder_name']
+  ];
+  for(const [table,col] of updates){
+    try{ await sb.from(table).update({[col]:name}).eq(col, oldName); }catch(e){ console.error('rename propagate failed', table, col, e); }
+  }
+  shifts.forEach(s=>{ if(s.freelance_name===oldName) s.freelance_name=name; if(s.freelance_recorder_name===oldName) s.freelance_recorder_name=name; });
+  magTeams.forEach(t=>{ if(t.freelance_photographer_name===oldName) t.freelance_photographer_name=name; if(t.freelance_recorder_name===oldName) t.freelance_recorder_name=name; });
   render();
 }
 async function addWorker(type){
