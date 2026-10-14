@@ -371,7 +371,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-10-13-114';
+const APP_VERSION = '2026-10-14-115';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -874,20 +874,22 @@ async function changeConstraintsWeek(delta){
 }
 
 const FREELANCER_SEED = [
-  ['רמי סיגואי','photographer'],['רמי רוזנשטיין','photographer'],['חיים אסיאס','photographer'],
+  ['רמי סיגאוי','photographer'],['רמי רוזנשטיין','photographer'],['חיים אסיאס','photographer'],
   ['גיורא יחזקאל','photographer'],['מתי שטיין','photographer'],['גיל מזומן','photographer'],
   ['שי גרנות','photographer'],['שלומי נמטי','photographer'],['הדר יואביאן','photographer'],
-  ['ערן דיין','photographer'],['תרוות חדיד','photographer'],['מוחמד שינואי','photographer'],
+  ['ערן דיין','photographer'],['תרוות חדיד','photographer'],['מוחמד שנאוי','photographer'],
   ['יובל רווח','photographer'],
   ['אסי איוס','photographer'],['יוסי איפרגן','photographer'],['אלון גרגו','photographer'],
   ['עדי ששון','photographer'],['דודו יצחקי','photographer'],['יואב קליינמן','photographer'],
-  ['אבישר אגא','recorder'],['אודליה רוזנצויג','recorder'],['גררד אלוש','recorder'],
+  ['אבישר אגא','recorder'],['אודליה רוזנצווייג','recorder'],['גררד אלוש','recorder'],
   ['רביד דביר','recorder'],['אמיר שמואלי','recorder'],['איתמר ברזילאי','recorder'],
   ['אלעד דבורצין','recorder'],['יוחאי בן צבי','recorder'],['אלון דעי','recorder'],
   ['קובי שמר','recorder'],['אורי רז','recorder'],['לב רטנר','recorder'],
   ['אורי פרידן','recorder'],['יואל מנדלסון','recorder'],['עוז זיכרמן','recorder']
 ];
 async function backfillFreelancers(){
+  // ממלא את הרשימה מהרשימה הקבועה רק אם היא ריקה לגמרי - אחרת שמות שנמחקו/תוקנו חוזרים בכל טעינה
+  if(freelancers.length>0) return;
   const existingNames = new Set(freelancers.map(f=>f.name));
   const missing = FREELANCER_SEED.filter(([name])=>!existingNames.has(name));
   if(!missing.length) return;
