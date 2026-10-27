@@ -371,7 +371,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-10-27-116';
+const APP_VERSION = '2026-10-27-117';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -3947,6 +3947,23 @@ function finishTeamAccess(email, role){
   loadWeek();
   setupRealtime();
 }
+/* רענון נתונים אוטומטי כגיבוי לסנכרון בזמן אמת (למקרה שהחיבור נפל / המכשיר ישן) - רק למי שלא במצב עריכה */
+let lastDataRefreshAt = Date.now();
+async function backgroundDataRefresh(force){
+  if(document.visibilityState!=='visible') return;
+  if(editMode) return;
+  if(!force && Date.now()-lastDataRefreshAt < 50*1000) return;
+  const ae = document.activeElement;
+  if(ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.tagName==='SELECT')) return;
+  const ov = document.getElementById('popup-overlay');
+  if(ov && ov.classList.contains('show')) return;
+  lastDataRefreshAt = Date.now();
+  try{ await refreshAll(); }catch(e){ console.error('background refresh failed', e); }
+}
+setInterval(()=>backgroundDataRefresh(false), 60*1000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') backgroundDataRefresh(true); });
+window.addEventListener('focus', ()=>backgroundDataRefresh(true));
+window.addEventListener('online', ()=>{ setupRealtime(); backgroundDataRefresh(true); });
 /* ===================== בדיקת גרסה חדשה (מונע תקיעות על גרסה ישנה שמורה במטמון) ===================== */
 let pendingReload = false;
 async function checkForNewVersion(){
