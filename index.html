@@ -371,7 +371,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-10-14-115';
+const APP_VERSION = '2026-10-27-116';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -795,7 +795,8 @@ async function loadWeek(){
   document.getElementById('week-label').textContent = fmtWeekLabel(sunday);
   setSync(true,'טוען...');
   try{
-    await ensureWeekInitialized();
+    // עובדים שגולשים אחורה לא יוצרים שורות ריקות בשבועות ישנים
+    if(!(weekStart < dateStr(getWeekStart(0)) && accessRole!=='manager' && !editMode)) await ensureWeekInitialized();
     await refreshAll();
     setSync(true,'מסונכרן ✓');
   }catch(e){
@@ -839,6 +840,8 @@ async function refreshAll(){
   } else {
     weekPublished = !!wp.data[0].published;
   }
+  // שבועות שעברו תמיד גלויים לעובדים (גם אם סומנו בעבר כטיוטה)
+  if(weekStart < dateStr(getWeekStart(0))) weekPublished = true;
   if(!workers.length) await seedWorkers();
   else await backfillWorkerEmails();
   await backfillFreelancers();
@@ -1479,17 +1482,21 @@ function renderMaHeader(myId, subtitleHtml){
     ${subtitleHtml||''}
   </div>`;
 }
+function maWeekNavHtml(){
+  const label = fmtWeekLabel(getWeekStart(weekOffset));
+  return `<div class="ma-week-nav">
+    <div class="ma-week-btn" onclick="changeWeek(1)">▶ הבא</div>
+    <div class="ma-week-btn ${weekOffset===0?'active':''}" style="flex:2" onclick="weekOffset=0;loadWeek()">${label}${weekOffset!==0?'<br><span style="font-size:10px;font-weight:400">לחץ לחזרה לשבוע הנוכחי</span>':''}</div>
+    <div class="ma-week-btn" onclick="changeWeek(-1)">◀ קודם</div>
+  </div>`;
+}
 function renderMaHome(myId){
   if(!myId){
     return renderMaHeader(null,'') + `<div class="ma-empty">לא זוהתה זהות עובד למייל שלך. פנה למנהל.</div>`;
   }
   if(!weekPublished){
     return renderMaHeader(myId,'') + `<div style="padding:0 4px">
-      <div class="ma-week-nav">
-        <div class="ma-week-btn ${weekOffset===1?'active':''}" onclick="weekOffset=1;loadWeek()">שבוע הבא</div>
-        <div class="ma-week-btn ${weekOffset===0?'active':''}" onclick="weekOffset=0;loadWeek()">היום</div>
-        <div class="ma-week-btn ${weekOffset===-1?'active':''}" onclick="weekOffset=-1;loadWeek()">שבוע קודם</div>
-      </div>
+      ${maWeekNavHtml()}
       <div class="ma-empty">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div>
     </div>`;
   }
@@ -1505,14 +1512,15 @@ function renderMaHome(myId){
       if(endM < 0 || endM > nowMinutes){ nextEntry = e; break; }
     }
   }
+  if(weekOffset!==0) nextEntry = sorted.length ? sorted[0] : null;
   if(!nextEntry && sorted.length) nextEntry = sorted[0];
 
   let heroHtml;
   if(nextEntry){
-    const isToday = nextEntry.day === todayIdx;
+    const isToday = weekOffset===0 && nextEntry.day === todayIdx;
     heroHtml = `<div class="ma-hero">
       <div class="ma-hero-label">
-        <span>המשמרת הבאה</span>
+        <span>${weekOffset===0?'המשמרת הבאה':'המשמרת הראשונה בשבוע'}</span>
         ${isToday?`<span class="ma-hero-today">היום</span>`:''}
       </div>
       <div class="ma-hero-time">${nextEntry.time||''}</div>
@@ -1525,14 +1533,10 @@ function renderMaHome(myId){
     heroHtml = `<div class="ma-hero"><div class="ma-empty" style="color:#9CA3AF">אין לך משמרות בשבוע הזה</div></div>`;
   }
 
-  const weekNav = `<div class="ma-week-nav">
-    <div class="ma-week-btn ${weekOffset===1?'active':''}" onclick="weekOffset=1;loadWeek()">שבוע הבא</div>
-    <div class="ma-week-btn ${weekOffset===0?'active':''}" onclick="weekOffset=0;loadWeek()">היום</div>
-    <div class="ma-week-btn ${weekOffset===-1?'active':''}" onclick="weekOffset=-1;loadWeek()">שבוע קודם</div>
-  </div>`;
+  const weekNav = maWeekNavHtml();
 
   const listHtml = entries.length ? entries.map(e=>{
-    const isToday = e.day===todayIdx;
+    const isToday = weekOffset===0 && e.day===todayIdx;
     return `<div class="ma-card ${isToday?'today':''}">
       <div class="ma-card-top">
         <span class="ma-card-day">${DAYS[e.day].label}</span>
@@ -1556,9 +1560,9 @@ function renderMaTeam(){
       <div class="ma-greeting" style="font-size:18px">הצוות</div>
       <div class="ma-subdate">${fmtWeekLabel(getWeekStart(weekOffset))}</div>
     </div>
-    <div style="padding:0 4px"><div class="ma-empty">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div></div>`;
+    <div style="padding:0 4px">${maWeekNavHtml()}<div class="ma-empty">📋 הסידור לשבוע זה עדיין בהכנה ויפורסם בקרוב.</div></div>`;
   }
-  const activeDayIdx = maTeamDay==null ? new Date().getDay() : maTeamDay;
+  const activeDayIdx = maTeamDay==null ? (weekOffset===0 ? new Date().getDay() : 0) : maTeamDay;
   const dayPills = DAYS.map(d=>`<div class="ma-daypill ${d.i===activeDayIdx?'active':''}" onclick="maTeamDay=${d.i};render()">${d.label}<br>${dateForDay(d.i).slice(8,10)}</div>`).join('');
 
   const regionOrder = [
@@ -1608,6 +1612,7 @@ function renderMaTeam(){
     <div class="ma-subdate">${fmtWeekLabel(getWeekStart(weekOffset))}</div>
   </div>
   <div style="padding:0 4px">
+    ${maWeekNavHtml()}
     <div class="ma-daypills">${dayPills}</div>
     ${body}
   </div>`;
