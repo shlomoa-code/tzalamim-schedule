@@ -67,6 +67,8 @@ h1{font-size:19px;font-weight:600}
 .worker-pill.freelance{background:var(--red-bg);color:var(--red)}
 .del-row{position:absolute;top:5px;left:5px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;opacity:.5;padding:2px}
 .del-row:hover{opacity:1;color:var(--red)}
+.tchange-badge{display:flex;align-items:center;justify-content:center;gap:4px;background:#FDEBD3;color:#B45309;border-radius:6px;padding:3px 6px;font-size:10.5px;font-weight:700;margin:3px 0;text-align:center}
+.tchange-badge button{border:none;background:none;color:#B45309;cursor:pointer;font-size:11px;padding:0}
 .sick-badge{display:flex;align-items:center;justify-content:space-between;background:#F1E6FB;color:#6D28D9;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:600;margin-bottom:5px}
 .prev-shoot-hint{background:#EEF5FC;color:#1A6FBF;border-radius:6px;padding:5px 7px;font-size:11px;margin-top:4px;line-height:1.4}
 .sick-badge button{background:none;border:none;color:#6D28D9;cursor:pointer;font-size:12px;opacity:.7}
@@ -350,6 +352,7 @@ h1{font-size:19px;font-weight:600}
       <button class="btn" id="backup-export-btn" style="display:none" onclick="exportFullBackup()">💾 גיבוי מלא</button>
       <button class="btn" id="import-duty-btn" style="display:none" onclick="importDutyToSchedule()">📥 ייבוא מלוח תורנויות</button>
       <button class="btn" id="stats-btn" style="display:none" onclick="showStats()">📊 סטטיסטיקה</button>
+      <button class="btn" id="tchange-report-btn" style="display:none" onclick="showTimeChangesReport()">🔁 שינויי שעות</button>
       <button class="btn" id="shoot-report-btn" style="display:none" onclick="showShootDayReport()">🎬 דוח ימי צילום</button>
       <button class="btn" id="publish-toggle-btn" style="display:none" onclick="togglePublish()">🚀 פרסם</button>
       <button class="btn" id="edit-toggle" onclick="toggleEdit()">🔒 ערוך</button>
@@ -371,7 +374,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-10-27-117';
+const APP_VERSION = '2026-11-03-118';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -667,6 +670,8 @@ const TABS = [
 let editMode = false;
 let activeTab = 'schedule';
 let weekOffset = 0;
+let timeChanges = [];
+const TIME_CHANGE_FEE = 150;
 let weekStart = '';
 let weekPublished = true;
 let workers = [];
@@ -807,7 +812,7 @@ async function loadWeek(){
 
 async function refreshAll(){
   const constraintsWeekStart = dateStr(getWeekStart(constraintsWeekOffset));
-  const [w, s, m, t, c, vAll, f, mv, dr, vw, swc, wp, tlAll] = await Promise.all([
+  const [w, s, m, t, c, vAll, f, mv, dr, vw, swc, wp, tlAll, tcRes] = await Promise.all([
     sb.from('workers').select('*').order('name'),
     sb.from('shifts').select('*').eq('week_start', weekStart).order('row_order'),
     sb.from('magazine_teams').select('*').eq('week_start', weekStart).order('row_order'),
@@ -820,8 +825,10 @@ async function refreshAll(){
     sb.from('viewers').select('*').order('name'),
     sb.from('constraints').select('*').eq('week_start', weekStart),
     sb.from('week_publish').select('published').eq('week_start', weekStart),
-    fetchAllRows('topline_log', '*')
+    fetchAllRows('topline_log', '*'),
+    sb.from('shift_time_changes').select('*').order('created_at')
   ]);
+  timeChanges = (tcRes && tcRes.data) || [];
   workers = w.data || [];
   shifts = s.data || [];
   magTeams = m.data || [];
@@ -1011,6 +1018,7 @@ function toggleEdit(){
   document.getElementById('edit-toggle').className = editMode ? 'btn badge-editmode' : 'btn';
   document.getElementById('stats-btn').style.display = editMode ? '' : 'none';
   document.getElementById('shoot-report-btn').style.display = editMode ? '' : 'none';
+  document.getElementById('tchange-report-btn').style.display = editMode ? '' : 'none';
   document.getElementById('screenshot-btn').style.display = editMode ? '' : 'none';
   document.getElementById('import-duty-btn').style.display = editMode ? '' : 'none';
   updatePublishBtn();
@@ -1140,6 +1148,7 @@ function shiftCardHtml(s){
     const isSpecialLabel = labelBase==='כונן' || labelBase==='ערבית';
     return `<div class="mini-card">
       ${isSpecialLabel?`<div class="shift-label">${labelBase}</div>`:''}<div class="shift-time">${s.start_time}–${s.end_time}</div>
+      ${timeChangeBadgeHtml('shift', s.id)}
       ${labelNote?`<div class="shift-note">${labelNote}</div>`:''}
       ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}</div>`:''}
       ${sickRName?`<div class="sick-badge">🤒 מחלה: ${sickRName}</div>`:''}
@@ -1157,6 +1166,7 @@ function shiftCardHtml(s){
       <input value="${s.start_time}" onchange="updateShift('${s.id}','start_time',this.value)">–
       <input value="${s.end_time}" onchange="updateShift('${s.id}','end_time',this.value)">
     </div>
+    ${timeChangeBadgeHtml('shift', s.id)}
     <span class="team-role">צלם</span>
     ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}<button onclick="clearShiftSick('${s.id}','photographer')">✕ בטל</button></div>`:''}
     <div class="worker-pill ${displayName?'filled':'empty'}" onclick="openWorkerPopup('shift','${s.id}','photographer')">${displayName||(sickName?'+ שבץ מחליף':'+ שבץ')}</div>
@@ -1192,6 +1202,7 @@ function teamCardHtml(t){
     return `<div class="mini-card ${hasDetails?'clickable':''}" ${hasDetails?`onclick="openTeamDetails('${t.id}')"`:''}>
       ${sickP?`<div class="sick-badge">🤒 ${sickP}</div>`:''}
       ${sickR?`<div class="sick-badge">🤒 ${sickR}</div>`:''}
+      ${timeChangeBadgeHtml('team', t.id)}
       ${combined?`<div class="worker-pill filled ${isFreelance?'freelance':''}">${combined}</div>`:''}
       ${t.note?`<div class="shift-note" style="white-space:normal">📌 ${t.note}</div>`:''}
       ${hasDetails?'<div class="tap-hint">לפרטים לחץ כאן</div>':''}
@@ -1200,6 +1211,7 @@ function teamCardHtml(t){
 
   return `<div class="mini-card">
     <button class="del-row" onclick="deleteTeam('${t.id}')">✕</button>
+    ${timeChangeBadgeHtml('team', t.id)}
     <span class="team-role">צלם</span>
     ${sickP?`<div class="sick-badge">🤒 ${sickP}<button onclick="clearTeamSick('${t.id}','photographer')">✕</button></div>`:''}
     <div class="worker-pill ${pname?'filled':'empty'}" onclick="openWorkerPopup('team','${t.id}','photographer')">${pname||(sickP?'+ מחליף':'+ בחר')}</div>
@@ -1376,11 +1388,11 @@ function getMyShiftEntries(id){
     };
     if(s.worker_id===id){
       const partner = partnerLabel(s.recorder_id, s.freelance_recorder_name);
-      entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, start_time:s.start_time, end_time:s.end_time, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
+      entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, start_time:s.start_time, end_time:s.end_time, time:`${s.start_time}–${s.end_time}`, role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':'', change: tcOldFor('shift', s.id, id)});
     }
     if(s.recorder_id===id){
       const partner = partnerLabel(s.worker_id, s.freelance_name);
-      entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, start_time:s.start_time, end_time:s.end_time, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':''});
+      entries.push({day:s.day_of_week, cat:REGIONS[s.region]?.name||s.region, label:s.label, start_time:s.start_time, end_time:s.end_time, time:`${s.start_time}–${s.end_time}`, role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: s.label==='כונן'?'oncall':'', change: tcOldFor('shift', s.id, id)});
     }
   });
   magTeams.forEach(t=>{
@@ -1392,11 +1404,11 @@ function getMyShiftEntries(id){
     const magColorClass = t.magazine ? `mag-${t.magazine}` : '';
     if(t.photographer_id===id){
       const partner = partnerLabelMag(t.recorder_id, t.freelance_recorder_name);
-      entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, start_time:t.start_time, end_time:t.end_time, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: magColorClass});
+      entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, start_time:t.start_time, end_time:t.end_time, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'צלם', partner: partner?`מקליט: ${partner}`:'', colorClass: magColorClass, change: tcOldFor('team', t.id, id)});
     }
     if(t.recorder_id===id){
       const partner = partnerLabelMag(t.photographer_id, t.freelance_photographer_name);
-      entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, start_time:t.start_time, end_time:t.end_time, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: magColorClass});
+      entries.push({day:t.day_of_week, cat:MAGAZINES[t.magazine]?.name||t.magazine, label:extra, start_time:t.start_time, end_time:t.end_time, time:t.start_time?`${t.start_time}–${t.end_time}`:'', role:'מקליט', partner: partner?`צלם: ${partner}`:'', colorClass: magColorClass, change: tcOldFor('team', t.id, id)});
     }
   });
   entries.sort((a,b)=>a.day-b.day);
@@ -1422,7 +1434,7 @@ function renderMyShifts(){
         const ds = dateForDay(e.day);
         return `<div class="my-shift-card ${e.colorClass||''}">
           <div class="my-shift-day">${DAYS[e.day].label} <span style="direction:ltr;color:var(--muted);font-weight:400;font-size:11px">${ds.slice(8,10)}/${ds.slice(5,7)}</span></div>
-          <div class="my-shift-detail">${e.cat} — ${e.role}${e.label?' · '+e.label:''}${e.time?' · <span dir="ltr">'+e.time+'</span>':''}</div>
+          <div class="my-shift-detail">${e.cat} — ${e.role}${e.label?' · '+e.label:''}${e.time?' · <span dir="ltr">'+e.time+'</span>':''}${e.change?' · 🔁 שינוי שעות (היה <span dir="ltr">'+e.change+'</span>)':''}</div>
           ${e.partner?`<div class="my-shift-detail" style="color:var(--muted);margin-top:2px">${e.partner}</div>`:''}
         </div>`;
       }).join('') + `</div>`;
@@ -1524,6 +1536,7 @@ function renderMaHome(myId){
         ${isToday?`<span class="ma-hero-today">היום</span>`:''}
       </div>
       <div class="ma-hero-time">${nextEntry.time||''}</div>
+      ${entryChangeHtml(nextEntry)}
       <div class="ma-hero-day">${DAYS[nextEntry.day].label} · ${dateForDay(nextEntry.day).slice(8,10)}/${dateForDay(nextEntry.day).slice(5,7)}</div>
       <div class="ma-hero-divider"></div>
       <div class="ma-hero-region">${nextEntry.cat}${nextEntry.label?' · '+nextEntry.label:''}</div>
@@ -1543,6 +1556,7 @@ function renderMaHome(myId){
         <span class="ma-card-date">${dateForDay(e.day).slice(8,10)}/${dateForDay(e.day).slice(5,7)}</span>
       </div>
       <div class="ma-card-time">${e.time||''}</div>
+      ${entryChangeHtml(e)}
       <div class="ma-card-region">${e.cat}${e.label?' · '+e.label:''}</div>
       ${e.partner?`<div class="ma-card-partner">${e.partner}</div>`:''}
     </div>`;
@@ -1582,7 +1596,7 @@ function renderMaTeam(){
       else if(rname) nameLine = `מקליט: ${rname}`;
       else nameLine = '—';
       body += `<div class="ma-team-card">
-        <div><div class="ma-team-name">${nameLine}</div><div class="sub" style="font-size:11px">${s.label||''}</div></div>
+        <div><div class="ma-team-name">${nameLine}</div><div class="sub" style="font-size:11px">${s.label||''}</div>${timeChangeBadgeHtml('shift', s.id)}</div>
         <div class="ma-team-time">${s.start_time}–${s.end_time}</div>
       </div>`;
     });
@@ -2013,6 +2027,7 @@ function renderRegion(regionKey){
              </div>`
           : `<div class="shift-label">${s.label}</div><div class="shift-time">${s.start_time}–${s.end_time}</div>`
         }
+        ${timeChangeBadgeHtml('shift', s.id)}
         ${sickName?`<div class="sick-badge">🤒 מחלה: ${sickName}${editMode?`<button onclick="clearSick('${s.id}')">✕ בטל</button>`:''}</div>`:''}
         <div class="worker-pill ${displayName?'filled':'empty'}" ${editMode?`onclick="openWorkerPopup('shift','${s.id}','photographer')"`:''}>${displayName||(sickName?'+ שבץ מחליף':'+ שבץ צלם')}</div>
         ${editMode?`<input class="freelance-input" list="freelancers-dl" placeholder="או הקלד שם פרילנס" value="${s.freelance_name||''}" onchange="updateShift('${s.id}','freelance_name',this.value)">`:''}
@@ -2107,10 +2122,100 @@ async function mergeFreelancer(id){
   await loadWeek();
   render();
 }
+/* ===================== שינויי שעות (150 ש"ח לשכירים) ===================== */
+function timeChangesFor(kind, id){
+  return timeChanges.filter(c=> kind==='shift' ? c.shift_id===id : c.team_id===id);
+}
+function tcOldFor(kind, id, workerId){
+  const c = timeChangesFor(kind,id).find(x=>x.worker_id===workerId);
+  return c ? `${c.old_start||''}–${c.old_end||''}` : '';
+}
+function timeChangeBadgeHtml(kind, id){
+  const list = timeChangesFor(kind,id);
+  if(!list.length) return '';
+  const c = list[0];
+  return `<div class="tchange-badge">🔁 שינוי שעות · היה <span dir="ltr">${c.old_start||''}–${c.old_end||''}</span>${editMode?`<button title="בטל סימון שינוי שעות" onclick="cancelTimeChange('${kind}','${id}')">✕</button>`:''}</div>`;
+}
+function entryChangeHtml(e){
+  return e && e.change ? `<div class="tchange-badge">🔁 שינוי שעות · היה <span dir="ltr">${e.change}</span></div>` : '';
+}
+async function cancelTimeChange(kind, id){
+  if(!confirm('לבטל את סימון שינוי השעות במשמרת הזו? (לא ייספר בסטטיסטיקה)')) return;
+  const col = kind==='shift' ? 'shift_id' : 'team_id';
+  await sb.from('shift_time_changes').delete().eq(col, id);
+  timeChanges = timeChanges.filter(c=>c[col]!==id);
+  render();
+}
+async function maybeRecordTimeChange(kind, row, field, oldVal, newVal){
+  if(!editMode || !weekPublished) return false;
+  if(field!=='start_time' && field!=='end_time') return false;
+  if(!oldVal || (oldVal||'')===(newVal||'')) return false;
+  const ids = kind==='shift' ? [row.worker_id, row.recorder_id] : [row.photographer_id, row.recorder_id];
+  const salaried = [...new Set(ids.filter(Boolean))]; // עובדים שכירים בלבד (פרילנסרים לא מופיעים כ-id)
+  if(!salaried.length) return false;
+  const oldStart = field==='start_time' ? oldVal : row.start_time;
+  const oldEnd = field==='end_time' ? oldVal : row.end_time;
+  const keyCol = kind==='shift' ? 'shift_id' : 'team_id';
+  // אם כבר אישרת שינוי שעות במשמרת הזו ב-10 הדקות האחרונות (למשל שינית גם התחלה וגם סיום) - מעדכנים את אותה רשומה בלי לשאול שוב
+  const recent = timeChanges.filter(c=>c[keyCol]===row.id && Date.now()-new Date(c.created_at).getTime() < 10*60*1000);
+  if(recent.length){
+    for(const c of recent){
+      await sb.from('shift_time_changes').update({new_start:row.start_time, new_end:row.end_time}).eq('id', c.id);
+      c.new_start = row.start_time; c.new_end = row.end_time;
+    }
+    return true;
+  }
+  const dayDate = dateForDay(row.day_of_week);
+  const names = salaried.map(id=>workerName(id)).filter(Boolean).join(' ו');
+  const ok = confirm(`שינית שעות במשמרת של ${names} (${dayDate.slice(8,10)}/${dayDate.slice(5,7)}):\nהיה ${oldStart}–${oldEnd}  ←  עכשיו ${row.start_time}–${row.end_time}\n\nהאם זה נחשב שינוי שעות (${TIME_CHANGE_FEE} ש"ח)?\nאישור = כן, יסומן בסידור ויירשם בסטטיסטיקה.`);
+  if(!ok) return false;
+  const rows = salaried.map(wid=>({week_start:weekStart, [keyCol]:row.id, worker_id:wid, change_date:dayDate, old_start:oldStart, old_end:oldEnd, new_start:row.start_time, new_end:row.end_time}));
+  const {data, error} = await sb.from('shift_time_changes').insert(rows).select();
+  if(error){ alert('לא הצלחתי לשמור את שינוי השעות: '+error.message+'\n\n(ייתכן שצריך להריץ את קובץ ה-SQL של שינויי שעות ב-Supabase)'); return false; }
+  timeChanges = timeChanges.concat(data||[]);
+  return true;
+}
+let tcReportMonth = null;
+function showTimeChangesReport(){
+  if(!tcReportMonth){ const n = new Date(); tcReportMonth = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`; }
+  const [y,m] = tcReportMonth.split('-').map(Number);
+  const list = timeChanges.filter(c=>(c.change_date||'').startsWith(tcReportMonth));
+  const byWorker = {};
+  list.forEach(c=>{ (byWorker[c.worker_id] = byWorker[c.worker_id]||[]).push(c); });
+  const ids = Object.keys(byWorker).sort((a,b)=>(workerName(a)||'').localeCompare(workerName(b)||'','he'));
+  const fmt = d=>`${d.slice(8,10)}/${d.slice(5,7)}`;
+  const rows = ids.map(id=>{
+    const items = byWorker[id].sort((a,b)=>a.change_date.localeCompare(b.change_date));
+    const days = new Set(items.map(x=>x.change_date)).size;
+    return `<div style="border-top:1px solid var(--line);padding:8px 0">
+      <div style="font-weight:700">${workerName(id)||'—'} <span style="font-weight:400;color:var(--muted)">· ${items.length} שינויים · ${days} ימים · </span><b>${items.length*TIME_CHANGE_FEE} ₪</b></div>
+      ${items.map(c=>`<div style="font-size:12px;color:var(--muted)">${fmt(c.change_date)} — היה <span dir="ltr">${c.old_start||''}–${c.old_end||''}</span> ← <span dir="ltr">${c.new_start||''}–${c.new_end||''}</span></div>`).join('')}
+    </div>`;
+  }).join('') || `<div class="empty-msg">אין שינויי שעות בחודש הזה</div>`;
+  document.getElementById('popup-title').textContent = `שינויי שעות — ${MONTHS_HE[m-1]} ${y}`;
+  document.getElementById('popup-opts').innerHTML = `
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px">
+      <button class="btn btn-sm" onclick="tcReportShift(-1)">◀ חודש קודם</button>
+      <button class="btn btn-sm" onclick="tcReportShift(1)">חודש הבא ▶</button>
+    </div>
+    <div style="font-size:12px;margin-bottom:6px">סה"כ בחודש: <b>${list.length}</b> שינויים · <b>${list.length*TIME_CHANGE_FEE} ₪</b></div>
+    ${rows}`;
+  document.getElementById('popup-overlay').classList.add('show');
+}
+function tcReportShift(delta){
+  const [y,m] = tcReportMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  tcReportMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  showTimeChangesReport();
+}
 async function updateShift(id, field, value){
+  const s0 = shifts.find(x=>x.id===id);
+  const oldVal = s0 ? s0[field] : undefined;
   await sb.from('shifts').update({[field]:value}).eq('id',id);
   const s = shifts.find(x=>x.id===id); if(s) s[field]=value;
-  if(field==='start_time') render();
+  let recorded = false;
+  if(s && (field==='start_time' || field==='end_time')) recorded = await maybeRecordTimeChange('shift', s, field, oldVal, value);
+  if(field==='start_time' || recorded) render();
 }
 async function updateShiftNote(id, noteText){
   const newLabel = noteText.trim() ? `(${noteText.trim()})` : '';
@@ -2171,6 +2276,7 @@ function renderMagazines(){
         const sickR = t.sick_recorder_id ? workerName(t.sick_recorder_id) : null;
         html += `<div class="team-card">
           ${editMode?`<button class="del-row" onclick="deleteTeam('${t.id}')">✕</button>`:''}
+          ${timeChangeBadgeHtml('team', t.id)}
           <span class="team-role">צלם</span>
           ${sickP?`<div class="sick-badge">🤒 מחלה: ${sickP}${editMode?`<button onclick="clearTeamSick('${t.id}','photographer')">✕ בטל</button>`:''}</div>`:''}
           <div class="worker-pill ${pname?'filled':'empty'}" ${editMode?`onclick="openWorkerPopup('team','${t.id}','photographer')"`:''}>${pname||(sickP?'+ שבץ מחליף':'+ בחר צלם')}</div>
@@ -2210,8 +2316,14 @@ async function deleteTeam(id){
   render();
 }
 async function updateTeam(id, field, value){
+  const t0 = magTeams.find(x=>x.id===id);
+  const oldVal = t0 ? t0[field] : undefined;
   await sb.from('magazine_teams').update({[field]:value}).eq('id',id);
   const t = magTeams.find(x=>x.id===id); if(t) t[field]=value;
+  if(t && (field==='start_time' || field==='end_time')){
+    const recorded = await maybeRecordTimeChange('team', t, field, oldVal, value);
+    if(recorded) render();
+  }
 }
 async function showPrevShootDayHint(id){
   const hintEl = document.getElementById('prev-shoot-'+id);
