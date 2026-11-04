@@ -374,7 +374,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-11-03-118';
+const APP_VERSION = '2026-11-04-119';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -829,6 +829,9 @@ async function refreshAll(){
     sb.from('shift_time_changes').select('*').order('created_at')
   ]);
   timeChanges = (tcRes && tcRes.data) || [];
+  // אם אחת מהשאילתות המרכזיות נכשלה (תקלת רשת / שרת) - עוצרים ולא נוגעים בנתונים. אחרת תשובה ריקה בטעות נראית כמו "אין עובדים" ומזריעה את כולם מחדש (כפילויות)
+  const failedQuery = [w,s,m,f,dr,vw].find(r=>r && r.error);
+  if(failedQuery) throw new Error('data load failed: '+(failedQuery.error.message||'unknown'));
   workers = w.data || [];
   shifts = s.data || [];
   magTeams = m.data || [];
@@ -858,6 +861,7 @@ async function refreshAll(){
   render();
 }
 async function seedViewers(){
+  if(!(await tableReallyEmpty('viewers'))) return;
   const rows = VIEWERS_SEED.map(r=>({name:r[0], email:r[1], active:true}));
   try{
     await sb.from('viewers').insert(rows);
@@ -900,6 +904,7 @@ const FREELANCER_SEED = [
 async function backfillFreelancers(){
   // ממלא את הרשימה מהרשימה הקבועה רק אם היא ריקה לגמרי - אחרת שמות שנמחקו/תוקנו חוזרים בכל טעינה
   if(freelancers.length>0) return;
+  if(!(await tableReallyEmpty('freelancers'))) return;
   const existingNames = new Set(freelancers.map(f=>f.name));
   const missing = FREELANCER_SEED.filter(([name])=>!existingNames.has(name));
   if(!missing.length) return;
@@ -930,7 +935,13 @@ async function backfillWorkerEmails(){
   }
 }
 
+// בדיקה כפולה ישירות מול הטבלה לפני הזרעה: מזריעים רק אם הטבלה באמת ריקה והשאילתה הצליחה
+async function tableReallyEmpty(table){
+  const r = await sb.from(table).select('id', {count:'exact', head:true});
+  return !r.error && r.count===0;
+}
 async function seedWorkers(){
+  if(!(await tableReallyEmpty('workers'))) return;
   const photographers = [
     ['ליאור פז','liorp@kan.org.il'],['דור קשלס','dork@kan.org.il'],['יוגב אטיאס','yogeva@kan.org.il'],
     ['ברוך גואטה','baruchg@kan.org.il'],['אורן בלנקשטיין','orenb@kan.org.il'],['סלבה קנייזן','slavak@kan.org.il'],
