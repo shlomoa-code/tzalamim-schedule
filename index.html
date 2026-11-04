@@ -374,7 +374,7 @@ h1{font-size:19px;font-weight:600}
 
 <script>
 /* ===================== גרסת האפליקציה (לבדיקת עדכונים אוטומטית) ===================== */
-const APP_VERSION = '2026-11-04-119';
+const APP_VERSION = '2026-11-04-120';
 
 /* ===================== הגדרות חיבור ===================== */
 const SUPABASE_URL = 'https://zcklavyanuqjjvuzemvy.supabase.co';
@@ -4072,12 +4072,24 @@ function finishTeamAccess(email, role){
 }
 /* רענון נתונים אוטומטי כגיבוי לסנכרון בזמן אמת (למקרה שהחיבור נפל / המכשיר ישן) - רק למי שלא במצב עריכה */
 let lastDataRefreshAt = Date.now();
+function hasUnsavedFormInput(){
+  // מזהה שדה שהמשתמש שינה ביד מאז הציור האחרון (ערך שונה מברירת המחדל שבציור)
+  const fields = document.querySelectorAll('#content input, #content textarea, #content select, #mobile-app input, #mobile-app textarea, #mobile-app select');
+  for(const el of fields){
+    if(el.type==='hidden' || el.type==='checkbox' || el.type==='radio') continue;
+    if(el.tagName==='SELECT'){
+      if(Array.from(el.options).some(o=>o.selected!==o.defaultSelected)) return true;
+    } else if(el.value !== el.defaultValue) return true;
+  }
+  return false;
+}
 async function backgroundDataRefresh(force){
   if(document.visibilityState!=='visible') return;
   if(editMode) return;
   if(!force && Date.now()-lastDataRefreshAt < 50*1000) return;
   const ae = document.activeElement;
   if(ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.tagName==='SELECT')) return;
+  if(hasUnsavedFormInput()) return; // מישהו התחיל למלא טופס (למשל בקשת חופשה) ועדיין לא שלח - לא מציירים מחדש כדי לא למחוק לו
   const ov = document.getElementById('popup-overlay');
   if(ov && ov.classList.contains('show')) return;
   lastDataRefreshAt = Date.now();
